@@ -22,16 +22,13 @@ import java.io.PrintWriter;
 @Controller
 public class URLController {
 
-
-    @Autowired
-    DependencyCrudRepository curdRepository;
-
     private DependencyRepository repository;
     private PrintWriter writer;
     private FileRepository fileRepository;
     private NetworkRepository networkRepository;
 
-    public URLController() {
+    @Autowired
+    public URLController(DependencyCrudRepository curdRepository) {
         this.writer = new PrintWriter(System.out);
         this.repository = new DependencyRepository(curdRepository);
         this.fileRepository = new FileRepository();
