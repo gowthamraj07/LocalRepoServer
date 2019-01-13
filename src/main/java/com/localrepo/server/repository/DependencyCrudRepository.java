@@ -6,4 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface DependencyCrudRepository extends CrudRepository<DependencyDomain, Long> {
+    @Override
+    Iterable<DependencyDomain> findAll();
 }
