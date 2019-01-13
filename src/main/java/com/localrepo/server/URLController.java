@@ -3,6 +3,7 @@ package com.localrepo.server;
 import com.localrepo.server.domain.DependencyDomain;
 import com.localrepo.server.repository.DependencyRepository;
 import com.localrepo.server.repository.FileRepository;
+import com.localrepo.server.repository.NetworkRepository;
 import org.springframework.stereotype.Controller;
 
 import java.io.PrintWriter;
@@ -14,11 +15,13 @@ public class URLController {
     private PrintWriter writer;
     private DependencyRepository repository;
     private FileRepository fileRepository;
+    private NetworkRepository networkRepository;
 
-    public URLController(PrintWriter writer, DependencyRepository repository, FileRepository fileRepository) {
+    public URLController(PrintWriter writer, DependencyRepository repository, FileRepository fileRepository, NetworkRepository networkRepository) {
         this.writer = writer;
         this.repository = repository;
         this.fileRepository = fileRepository;
+        this.networkRepository = networkRepository;
     }
 
     public void getDependency(String path) {
@@ -30,5 +33,7 @@ public class URLController {
         if(!fileRepository.isDirectoryExists(id)) {
             fileRepository.createDirectory(id);
         }
+
+        networkRepository.downloadDependency(path);
     }
 }

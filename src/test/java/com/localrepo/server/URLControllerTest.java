@@ -3,6 +3,7 @@ package com.localrepo.server;
 import com.localrepo.server.domain.DependencyDomain;
 import com.localrepo.server.repository.DependencyRepository;
 import com.localrepo.server.repository.FileRepository;
+import com.localrepo.server.repository.NetworkRepository;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
@@ -19,14 +20,16 @@ public class URLControllerTest {
     private PrintWriter writer;
     private DependencyRepository repository;
     private FileRepository fileRepository;
+    private NetworkRepository networkRepository;
 
     @Before
     public void setUp() {
         repository = Mockito.mock(DependencyRepository.class);
         writer = Mockito.mock(PrintWriter.class);
         fileRepository = Mockito.mock(FileRepository.class);
+        networkRepository = Mockito.mock(NetworkRepository.class);
 
-        controller = new URLController(writer, repository, fileRepository);
+        controller = new URLController(writer, repository, fileRepository, networkRepository);
     }
 
     @Test
@@ -47,7 +50,7 @@ public class URLControllerTest {
     public void shouldCreateFolderIfRepositoryReturnsIdAndWhenFolderDoesnotExists() {
         repository = new FakeFailureRepository();
         Mockito.when(fileRepository.isDirectoryExists(DIRECTORY_ID)).thenReturn(false);
-        controller = new URLController(writer, repository, fileRepository);
+        controller = new URLController(writer, repository, fileRepository, networkRepository);
 
         controller.getDependency(ANY_PATH);
 
@@ -59,12 +62,23 @@ public class URLControllerTest {
     public void shouldNotCreateFolderWhenFolderAlreadyExists() {
         repository = new FakeFailureRepository();
         Mockito.when(fileRepository.isDirectoryExists(DIRECTORY_ID)).thenReturn(true);
-        controller = new URLController(writer, repository, fileRepository);
+        controller = new URLController(writer, repository, fileRepository, networkRepository);
 
         controller.getDependency(ANY_PATH);
 
         Mockito.verify(fileRepository).isDirectoryExists(DIRECTORY_ID);
         Mockito.verify(fileRepository, Mockito.times(0)).createDirectory(DIRECTORY_ID);
+    }
+
+    @Test
+    public void shouldMakeNetworkCallWhenDirectoryNotExists() {
+        repository = new FakeFailureRepository();
+        Mockito.when(fileRepository.isDirectoryExists(DIRECTORY_ID)).thenReturn(false);
+        controller = new URLController(writer, repository, fileRepository, networkRepository);
+
+        controller.getDependency(ANY_PATH);
+
+        Mockito.verify(networkRepository).downloadDependency(ANY_PATH);
     }
 
     private class FakeFailureRepository extends DependencyRepository {
