@@ -55,6 +55,18 @@ public class URLControllerTest {
         Mockito.verify(fileRepository).createDirectory(DIRECTORY_ID);
     }
 
+    @Test
+    public void shouldNotCreateFolderWhenFolderAlreadyExists() {
+        repository = new FakeFailureRepository();
+        Mockito.when(fileRepository.isDirectoryExists(DIRECTORY_ID)).thenReturn(true);
+        controller = new URLController(writer, repository, fileRepository);
+
+        controller.getDependency(ANY_PATH);
+
+        Mockito.verify(fileRepository).isDirectoryExists(DIRECTORY_ID);
+        Mockito.verify(fileRepository, Mockito.times(0)).createDirectory(DIRECTORY_ID);
+    }
+
     private class FakeFailureRepository extends DependencyRepository {
         @Override
         public String getId(DependencyDomain domain) {

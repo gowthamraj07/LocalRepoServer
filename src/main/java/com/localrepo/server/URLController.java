@@ -27,8 +27,8 @@ public class URLController {
         domain.setRequestedPath(path);
 
         String id = repository.getId(domain);
-        fileRepository.isDirectoryExists(id);
-        fileRepository.createDirectory(id);
-
+        if(!fileRepository.isDirectoryExists(id)) {
+            fileRepository.createDirectory(id);
+        }
     }
 }
