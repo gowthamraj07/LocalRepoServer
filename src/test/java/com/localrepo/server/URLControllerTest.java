@@ -81,6 +81,17 @@ public class URLControllerTest {
         Mockito.verify(networkRepository).downloadDependency(ANY_PATH);
     }
 
+    @Test
+    public void shouldNotMakeNetworkCallIfDataAlreadyExists() {
+        repository = new FakeFailureRepository();
+        Mockito.when(fileRepository.isDirectoryExists(DIRECTORY_ID)).thenReturn(true);
+        controller = new URLController(writer, repository, fileRepository, networkRepository);
+
+        controller.getDependency(ANY_PATH);
+
+        Mockito.verifyZeroInteractions(networkRepository);
+    }
+
     private class FakeFailureRepository extends DependencyRepository {
         @Override
         public String getId(DependencyDomain domain) {

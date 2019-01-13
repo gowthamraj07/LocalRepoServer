@@ -30,10 +30,9 @@ public class URLController {
         domain.setRequestedPath(path);
 
         String id = repository.getId(domain);
-        if(!fileRepository.isDirectoryExists(id)) {
+        if (!fileRepository.isDirectoryExists(id)) {
             fileRepository.createDirectory(id);
+            networkRepository.downloadDependency(path);
         }
-
-        networkRepository.downloadDependency(path);
     }
 }
