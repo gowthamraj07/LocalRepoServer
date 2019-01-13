@@ -46,11 +46,12 @@ public class URLControllerTest {
     @Test
     public void shouldCreateFolderIfRepositoryReturnsIdAndWhenFolderDoesnotExists() {
         repository = new FakeFailureRepository();
-        Mockito.when(fileRepository.isDirectoryExists(ANY_PATH)).thenReturn(false);
+        Mockito.when(fileRepository.isDirectoryExists(DIRECTORY_ID)).thenReturn(false);
         controller = new URLController(writer, repository, fileRepository);
 
         controller.getDependency(ANY_PATH);
 
+        Mockito.verify(fileRepository).isDirectoryExists(DIRECTORY_ID);
         Mockito.verify(fileRepository).createDirectory(DIRECTORY_ID);
     }
 

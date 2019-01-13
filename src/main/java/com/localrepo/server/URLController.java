@@ -25,7 +25,10 @@ public class URLController {
         writer.println(path);
         DependencyDomain domain = new DependencyDomain();
         domain.setRequestedPath(path);
+
         String id = repository.getId(domain);
+        fileRepository.isDirectoryExists(id);
         fileRepository.createDirectory(id);
+
     }
 }
