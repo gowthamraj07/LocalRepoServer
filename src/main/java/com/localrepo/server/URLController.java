@@ -11,6 +11,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -39,7 +40,17 @@ public class URLController {
         this.networkRepository = networkRepository;
     }
 
-    @RequestMapping(path = "/{path}")
+    @RequestMapping(path = "/cache/**")
+    public ResponseEntity<InputStreamResource> getDependency(HttpServletRequest request) {
+        try {
+            return getDependency(request.getRequestURI().substring(request.getContextPath().length()));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+
     public ResponseEntity<InputStreamResource> getDependency(@PathVariable("path") String path) throws FileNotFoundException {
         writer.println(path);
         DependencyDomain domain = new DependencyDomain();
