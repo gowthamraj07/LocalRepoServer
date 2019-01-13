@@ -17,4 +17,17 @@ public class DependencyDomain {
     public void setRequestedPath(String path) {
         this.path = path;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if(!(obj instanceof DependencyDomain)) {
+            return false;
+        }
+
+        return path.equals(((DependencyDomain)obj).path);
+    }
+
+    public Long getId() {
+        return id;
+    }
 }
