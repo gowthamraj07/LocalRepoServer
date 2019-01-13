@@ -15,12 +15,15 @@ public class DependencyRepository {
         }
 
         Iterable<DependencyDomain> domains = curdRepository.findAll();
+        int count = 0;
         for (DependencyDomain dependencyDomain : domains) {
             if(dependencyDomain.equals(domain)) {
                 return dependencyDomain.getId().toString();
             }
+            count++;
         }
 
-        return "-1";
+        curdRepository.save(domain);
+        return ""+count;
     }
 }
