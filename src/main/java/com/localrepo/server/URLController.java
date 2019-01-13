@@ -8,6 +8,7 @@ import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -30,6 +31,7 @@ public class URLController {
         this.networkRepository = networkRepository;
     }
 
+    @RequestMapping(path = "/")
     public ResponseEntity<InputStreamResource> getDependency(String path) throws FileNotFoundException {
         writer.println(path);
         DependencyDomain domain = new DependencyDomain();
