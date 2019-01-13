@@ -1,6 +1,7 @@
 package com.localrepo.server;
 
 import com.localrepo.server.domain.DependencyDomain;
+import com.localrepo.server.repository.DependencyCrudRepository;
 import com.localrepo.server.repository.DependencyRepository;
 import com.localrepo.server.repository.FileRepository;
 import com.localrepo.server.repository.NetworkRepository;
@@ -18,6 +19,8 @@ public class URLControllerTest {
 
     private static final String ANY_PATH = "any path";
     private static final String DIRECTORY_ID = "123";
+
+    private final DependencyCrudRepository curdRepository = Mockito.mock(DependencyCrudRepository.class);
 
     private URLController controller;
     private PrintWriter writer;
@@ -119,6 +122,11 @@ public class URLControllerTest {
     }
 
     private class FakeFailureRepository extends DependencyRepository {
+
+        FakeFailureRepository() {
+            super(curdRepository);
+        }
+
         @Override
         public String getId(DependencyDomain domain) {
             return DIRECTORY_ID;

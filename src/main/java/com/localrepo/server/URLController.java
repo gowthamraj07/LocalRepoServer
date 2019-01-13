@@ -1,9 +1,11 @@
 package com.localrepo.server;
 
 import com.localrepo.server.domain.DependencyDomain;
+import com.localrepo.server.repository.DependencyCrudRepository;
 import com.localrepo.server.repository.DependencyRepository;
 import com.localrepo.server.repository.FileRepository;
 import com.localrepo.server.repository.NetworkRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,14 +23,17 @@ import java.io.PrintWriter;
 public class URLController {
 
 
-    private PrintWriter writer;
+    @Autowired
+    DependencyCrudRepository curdRepository;
+
     private DependencyRepository repository;
+    private PrintWriter writer;
     private FileRepository fileRepository;
     private NetworkRepository networkRepository;
 
     public URLController() {
         this.writer = new PrintWriter(System.out);
-        this.repository = new DependencyRepository();
+        this.repository = new DependencyRepository(curdRepository);
         this.fileRepository = new FileRepository();
         this.networkRepository = new NetworkRepository();
     }
