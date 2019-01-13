@@ -4,8 +4,14 @@ import com.localrepo.server.domain.DependencyDomain;
 import com.localrepo.server.repository.DependencyRepository;
 import com.localrepo.server.repository.FileRepository;
 import com.localrepo.server.repository.NetworkRepository;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 
 @Controller
@@ -24,15 +30,24 @@ public class URLController {
         this.networkRepository = networkRepository;
     }
 
-    public void getDependency(String path) {
+    public ResponseEntity<InputStreamResource> getDependency(String path) throws FileNotFoundException {
         writer.println(path);
         DependencyDomain domain = new DependencyDomain();
         domain.setRequestedPath(path);
 
         String id = repository.getId(domain);
+        String localFilePath = fileRepository.getRepoDirectoryPath() + id;
         if (!fileRepository.isDirectoryExists(id)) {
             fileRepository.createDirectory(id);
-            networkRepository.downloadDependency(path, fileRepository.getRepoDirectoryPath()+id);
+            networkRepository.downloadDependency(path, localFilePath);
         }
+
+        File inputFile = new File(localFilePath);
+        InputStreamResource resource = new InputStreamResource(new FileInputStream(inputFile));
+
+        return ResponseEntity.ok()
+                .contentLength(inputFile.length())
+                .contentType(MediaType.parseMediaType("application/octet-stream"))
+                .body(resource);
     }
 }
