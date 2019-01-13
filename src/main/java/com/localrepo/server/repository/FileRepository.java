@@ -10,6 +10,6 @@ public class FileRepository {
     }
 
     public String getRepoDirectoryPath() {
-        return null;
+        return "./";
     }
 }
