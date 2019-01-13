@@ -9,7 +9,9 @@ import org.junit.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
+import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.PrintWriter;
 
 public class URLControllerTest {
@@ -25,12 +27,24 @@ public class URLControllerTest {
 
     @Before
     public void setUp() {
+        File file = new File("./123");
+        if (!file.exists()) {
+            file.mkdir();
+            File newFile = new File("./123/test.jar");
+            try {
+                newFile.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
         repository = Mockito.mock(DependencyRepository.class);
         writer = Mockito.mock(PrintWriter.class);
         fileRepository = Mockito.mock(FileRepository.class);
         networkRepository = Mockito.mock(NetworkRepository.class);
 
         Mockito.when(fileRepository.getRepoDirectoryPath()).thenReturn("./");
+        Mockito.when(repository.getId(ArgumentMatchers.any(DependencyDomain.class))).thenReturn(DIRECTORY_ID);
 
         controller = new URLController(writer, repository, fileRepository, networkRepository);
     }

@@ -44,11 +44,25 @@ public class URLController {
             networkRepository.downloadDependency(path, localFilePath);
         }
 
-        File inputFile = new File(localFilePath);
+        File directoryPath = new File(localFilePath);
+        File inputFile = null;
+        for (File file : directoryPath.listFiles()) {
+            if (file.getName().equals(".") || file.getName().equals("..")) {
+                continue;
+            }
+
+            inputFile = file;
+            break;
+        }
+
+        if (inputFile == null) {
+            return ResponseEntity.notFound().build();
+        }
+
         InputStreamResource resource = new InputStreamResource(new FileInputStream(inputFile));
 
         return ResponseEntity.ok()
-                .contentLength(inputFile.length())
+                .contentLength(directoryPath.length())
                 .contentType(MediaType.parseMediaType("application/octet-stream"))
                 .body(resource);
     }
