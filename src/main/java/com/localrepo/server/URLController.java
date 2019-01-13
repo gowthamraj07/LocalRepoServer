@@ -32,7 +32,7 @@ public class URLController {
         String id = repository.getId(domain);
         if (!fileRepository.isDirectoryExists(id)) {
             fileRepository.createDirectory(id);
-            networkRepository.downloadDependency(path);
+            networkRepository.downloadDependency(path, localDirectoryPath);
         }
     }
 }

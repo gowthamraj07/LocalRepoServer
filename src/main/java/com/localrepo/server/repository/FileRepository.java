@@ -8,4 +8,8 @@ public class FileRepository {
     public boolean isDirectoryExists(String path) {
         return false;
     }
+
+    public String getRepoDirectoryPath() {
+        return null;
+    }
 }

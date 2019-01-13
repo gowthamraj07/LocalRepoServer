@@ -78,7 +78,8 @@ public class URLControllerTest {
 
         controller.getDependency(ANY_PATH);
 
-        Mockito.verify(networkRepository).downloadDependency(ANY_PATH);
+        String localDirectoryPath = fileRepository.getRepoDirectoryPath() + DIRECTORY_ID;
+        Mockito.verify(networkRepository).downloadDependency(ANY_PATH, localDirectoryPath);
     }
 
     @Test
