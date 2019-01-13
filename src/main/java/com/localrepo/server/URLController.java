@@ -8,6 +8,7 @@ import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.io.File;
@@ -24,6 +25,13 @@ public class URLController {
     private FileRepository fileRepository;
     private NetworkRepository networkRepository;
 
+    public URLController() {
+        this.writer = new PrintWriter(System.out);
+        this.repository = new DependencyRepository();
+        this.fileRepository = new FileRepository();
+        this.networkRepository = new NetworkRepository();
+    }
+
     public URLController(PrintWriter writer, DependencyRepository repository, FileRepository fileRepository, NetworkRepository networkRepository) {
         this.writer = writer;
         this.repository = repository;
@@ -31,8 +39,8 @@ public class URLController {
         this.networkRepository = networkRepository;
     }
 
-    @RequestMapping(path = "/")
-    public ResponseEntity<InputStreamResource> getDependency(String path) throws FileNotFoundException {
+    @RequestMapping(path = "/{path}")
+    public ResponseEntity<InputStreamResource> getDependency(@PathVariable("path") String path) throws FileNotFoundException {
         writer.println(path);
         DependencyDomain domain = new DependencyDomain();
         domain.setRequestedPath(path);
