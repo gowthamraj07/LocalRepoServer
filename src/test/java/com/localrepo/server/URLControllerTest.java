@@ -9,6 +9,7 @@ import org.junit.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
+import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 
 public class URLControllerTest {
@@ -29,19 +30,21 @@ public class URLControllerTest {
         fileRepository = Mockito.mock(FileRepository.class);
         networkRepository = Mockito.mock(NetworkRepository.class);
 
+        Mockito.when(fileRepository.getRepoDirectoryPath()).thenReturn("./");
+
         controller = new URLController(writer, repository, fileRepository, networkRepository);
     }
 
     @Test
     public void shouldPrintTheRequestURL() {
-        controller.getDependency(ANY_PATH);
+        testControllerMethod();
 
         Mockito.verify(writer).println(ANY_PATH);
     }
 
     @Test
     public void shouldMakeRepositoryCallToFetchId() {
-        controller.getDependency(ANY_PATH);
+        testControllerMethod();
 
         Mockito.verify(repository).getId(ArgumentMatchers.any(DependencyDomain.class));
     }
@@ -52,7 +55,7 @@ public class URLControllerTest {
         Mockito.when(fileRepository.isDirectoryExists(DIRECTORY_ID)).thenReturn(false);
         controller = new URLController(writer, repository, fileRepository, networkRepository);
 
-        controller.getDependency(ANY_PATH);
+        testControllerMethod();
 
         Mockito.verify(fileRepository).isDirectoryExists(DIRECTORY_ID);
         Mockito.verify(fileRepository).createDirectory(DIRECTORY_ID);
@@ -64,7 +67,7 @@ public class URLControllerTest {
         Mockito.when(fileRepository.isDirectoryExists(DIRECTORY_ID)).thenReturn(true);
         controller = new URLController(writer, repository, fileRepository, networkRepository);
 
-        controller.getDependency(ANY_PATH);
+        testControllerMethod();
 
         Mockito.verify(fileRepository).isDirectoryExists(DIRECTORY_ID);
         Mockito.verify(fileRepository, Mockito.times(0)).createDirectory(DIRECTORY_ID);
@@ -76,7 +79,7 @@ public class URLControllerTest {
         Mockito.when(fileRepository.isDirectoryExists(DIRECTORY_ID)).thenReturn(false);
         controller = new URLController(writer, repository, fileRepository, networkRepository);
 
-        controller.getDependency(ANY_PATH);
+        testControllerMethod();
 
         String localDirectoryPath = fileRepository.getRepoDirectoryPath() + DIRECTORY_ID;
         Mockito.verify(networkRepository).downloadDependency(ANY_PATH, localDirectoryPath);
@@ -88,9 +91,17 @@ public class URLControllerTest {
         Mockito.when(fileRepository.isDirectoryExists(DIRECTORY_ID)).thenReturn(true);
         controller = new URLController(writer, repository, fileRepository, networkRepository);
 
-        controller.getDependency(ANY_PATH);
+        testControllerMethod();
 
         Mockito.verifyZeroInteractions(networkRepository);
+    }
+
+    private void testControllerMethod() {
+        try {
+            controller.getDependency(ANY_PATH);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     private class FakeFailureRepository extends DependencyRepository {
