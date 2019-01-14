@@ -2,6 +2,8 @@ package com.localrepo.server.repository;
 
 import com.localrepo.server.domain.DependencyDomain;
 
+import java.util.List;
+
 public class DependencyRepository {
     private DependencyCrudRepository curdRepository;
 
@@ -10,21 +12,20 @@ public class DependencyRepository {
     }
 
     public String getId(DependencyDomain domain) {
-        if(curdRepository == null) {
+        if (curdRepository == null) {
             return "-1";
         }
 
-        Iterable<DependencyDomain> domains = curdRepository.findAll();
-        Long count = 0l;
+        List<DependencyDomain> domains = curdRepository.findByPath(domain.getPath());
         for (DependencyDomain dependencyDomain : domains) {
-            if(dependencyDomain.equals(domain)) {
+            if (dependencyDomain.equals(domain)) {
                 return dependencyDomain.getId().toString();
             }
-            count++;
         }
 
-        domain.setId(count);
+        long nextId = curdRepository.getMaxId() + 1;
+        domain.setId(nextId);
         curdRepository.save(domain);
-        return ""+count;
+        return "" + nextId;
     }
 }
