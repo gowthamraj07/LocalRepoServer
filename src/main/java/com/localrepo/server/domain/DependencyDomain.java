@@ -34,4 +34,8 @@ public class DependencyDomain {
     public void setId(Long id) {
         this.id = id;
     }
+
+    public String getPath() {
+        return path;
+    }
 }
