@@ -5,19 +5,15 @@ import com.localrepo.server.repository.DependencyCrudRepository;
 import com.localrepo.server.repository.DependencyRepository;
 import com.localrepo.server.repository.FileRepository;
 import com.localrepo.server.repository.NetworkRepository;
+import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import javax.servlet.http.HttpServletRequest;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.PrintWriter;
+import java.io.*;
 
 @Controller
 public class URLController {
@@ -43,17 +39,17 @@ public class URLController {
     }
 
     @RequestMapping(path = "/cache/**")
-    public ResponseEntity<InputStreamResource> getDependency(HttpServletRequest request) {
+    public byte[] getDependency(HttpServletRequest request) {
         try {
             return getDependency(request.getRequestURI().substring(request.getContextPath().length()));
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
-        return ResponseEntity.notFound().build();
+        return new byte[0];
     }
 
 
-    public ResponseEntity<InputStreamResource> getDependency(@PathVariable("path") String path) throws FileNotFoundException {
+    public byte[] getDependency(@PathVariable("path") String path) throws FileNotFoundException {
         writer.println(path);
         DependencyDomain domain = new DependencyDomain();
         domain.setRequestedPath(path);
@@ -77,14 +73,16 @@ public class URLController {
         }
 
         if (inputFile == null) {
-            return ResponseEntity.notFound().build();
+            return new byte[0];
         }
 
-        InputStreamResource resource = new InputStreamResource(new FileInputStream(inputFile));
+        System.out.println("File to download : "+inputFile.getPath());
+        try {
+            return IOUtils.toByteArray(new FileInputStream(inputFile));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
-        return ResponseEntity.ok()
-                .contentLength(directoryPath.length())
-                .contentType(MediaType.parseMediaType("application/octet-stream"))
-                .body(resource);
+        return new byte[0];
     }
 }
