@@ -51,7 +51,7 @@ public class URLController {
     }
 
 
-    public byte[] getDependency(@PathVariable("path") String path) throws FileNotFoundException {
+    public byte[] getDependency(String path) throws FileNotFoundException {
         writer.println(path);
         DependencyDomain domain = new DependencyDomain();
         domain.setRequestedPath(path);
