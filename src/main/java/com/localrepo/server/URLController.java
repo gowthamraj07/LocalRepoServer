@@ -51,8 +51,8 @@ public class URLController {
 
         String id = repository.getId(domain);
         String localFilePath = fileRepository.getRepoDirectoryPath() + id;
-        if (!fileRepository.isDirectoryExists(id)) {
-            fileRepository.createDirectory(id);
+        if (!fileRepository.isDirectoryExists(localFilePath)) {
+            fileRepository.createDirectory(localFilePath);
             networkRepository.downloadDependency(path, localFilePath);
         }
 
