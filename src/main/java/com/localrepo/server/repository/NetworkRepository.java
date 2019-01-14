@@ -19,7 +19,7 @@ public class NetworkRepository {
             System.out.println(source.toString());
             System.out.println("file to create : " + (localDirectoryPath + "/" + getFileName(source)));
             File file = new File(localDirectoryPath + "/" + getFileName(source));
-            if (file.getParentFile() != null) {
+            if (file.getParentFile() != null && !file.getParentFile().exists()) {
                 file.getParentFile().mkdirs();
             }
 
