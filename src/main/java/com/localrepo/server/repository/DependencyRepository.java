@@ -11,7 +11,8 @@ public class DependencyRepository {
         this.curdRepository = curdRepository;
     }
 
-    public String getId(DependencyDomain domain) {
+
+    public synchronized String getId(DependencyDomain domain) {
         if (curdRepository == null) {
             return "-1";
         }
