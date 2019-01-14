@@ -7,9 +7,7 @@ import com.localrepo.server.repository.FileRepository;
 import com.localrepo.server.repository.NetworkRepository;
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -32,7 +30,7 @@ public class URLController {
         this.networkRepository = new NetworkRepository();
     }
 
-    public URLController(PrintWriter writer, DependencyRepository repository, FileRepository fileRepository, NetworkRepository networkRepository) {
+    URLController(PrintWriter writer, DependencyRepository repository, FileRepository fileRepository, NetworkRepository networkRepository) {
         this.writer = writer;
         this.repository = repository;
         this.fileRepository = fileRepository;
@@ -42,16 +40,11 @@ public class URLController {
     @RequestMapping(path = "/cache/**")
     @ResponseBody
     public byte[] getDependency(HttpServletRequest request) {
-        try {
-            return getDependency(request.getRequestURI().substring(request.getContextPath().length() + 6));
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-        return new byte[0];
+        return getDependency(request.getRequestURI().substring(request.getContextPath().length() + 6));
     }
 
 
-    public byte[] getDependency(String path) throws FileNotFoundException {
+    byte[] getDependency(String path) {
         writer.println(path);
         DependencyDomain domain = new DependencyDomain();
         domain.setRequestedPath(path);
