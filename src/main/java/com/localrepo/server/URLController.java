@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.*;
@@ -39,9 +40,10 @@ public class URLController {
     }
 
     @RequestMapping(path = "/cache/**")
+    @ResponseBody
     public byte[] getDependency(HttpServletRequest request) {
         try {
-            return getDependency(request.getRequestURI().substring(request.getContextPath().length()));
+            return getDependency(request.getRequestURI().substring(request.getContextPath().length() + 6));
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
