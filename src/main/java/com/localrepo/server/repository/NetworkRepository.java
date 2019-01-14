@@ -17,7 +17,15 @@ public class NetworkRepository {
             System.out.println("spec : " + spec);
             URL source = new URL(spec);
             System.out.println(source.toString());
-            FileUtils.copyURLToFile(source, new File(localDirectoryPath + File.pathSeparator + getFileName(source)));
+            System.out.println("file to create : " + (localDirectoryPath + "/" + getFileName(source)));
+            File file = new File(localDirectoryPath + "/" + getFileName(source));
+            if (file.getParentFile() != null) {
+                file.getParentFile().mkdirs();
+            }
+
+            file.createNewFile();
+            FileUtils.copyURLToFile(source, file);
+            System.out.println("File created");
         } catch (IOException e) {
             e.printStackTrace();
         }
