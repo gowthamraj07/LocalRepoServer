@@ -4,7 +4,7 @@ import java.io.File;
 
 public class FileRepository {
     public void createDirectory(String directoryId) {
-        File file = new File(getRepoDirectoryPath() + directoryId);
+        File file = new File(directoryId);
         if (!file.exists()) {
             file.mkdirs();
         }
