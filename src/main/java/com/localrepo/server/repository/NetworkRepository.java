@@ -9,7 +9,7 @@ import java.net.URL;
 public class NetworkRepository {
 
 
-    private static final String HTTPS_REPOSITORY_URL = "https://jcenter.bintray.com/";
+    private static final String HTTPS_REPOSITORY_URL = "https://maven.google.com";
 
     public void downloadDependency(String path, String localDirectoryPath) {
         try {
