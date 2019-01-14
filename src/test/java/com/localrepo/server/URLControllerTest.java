@@ -5,6 +5,7 @@ import com.localrepo.server.repository.DependencyCrudRepository;
 import com.localrepo.server.repository.DependencyRepository;
 import com.localrepo.server.repository.FileRepository;
 import com.localrepo.server.repository.NetworkRepository;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
@@ -111,6 +112,18 @@ public class URLControllerTest {
         testControllerMethod();
 
         Mockito.verifyZeroInteractions(networkRepository);
+    }
+
+    @After
+    public void tearDown() {
+        File newFile = new File("./123/test.jar");
+        if(newFile.exists()) {
+            newFile.delete();
+        }
+        File directory = new File("./123");
+        if(directory.exists()) {
+            directory.delete();
+        }
     }
 
     private void testControllerMethod() {
