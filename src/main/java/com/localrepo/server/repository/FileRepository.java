@@ -6,7 +6,7 @@ public class FileRepository {
     public void createDirectory(String directoryId) {
         File file = new File(getRepoDirectoryPath() + directoryId);
         if (!file.exists()) {
-            file.mkdir();
+            file.mkdirs();
         }
     }
 
@@ -15,6 +15,6 @@ public class FileRepository {
     }
 
     public String getRepoDirectoryPath() {
-        return "./";
+        return "./local_repo/";
     }
 }
