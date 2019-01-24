@@ -35,6 +35,20 @@ public class DependencyRepositoryTest {
         Assert.assertEquals("http://localhost:8080", domainByPath.getHost());
     }
 
+    @Test
+    public void shouldReturnFirstAvailableDomainFromListIfFindByPathReturnNonEmptyList() {
+        DependencyCrudRepository crudRepository = getMock();
+        DependencyDomain domain = new DependencyDomain();
+        domain.setRequestedPath("/test/sample");
+        List<DependencyDomain> listOfDomains = Collections.singletonList(domain);
+        Mockito.when(crudRepository.findByPath(ANY_PATH)).thenReturn(listOfDomains);
+        DependencyRepository repository = new DependencyRepository(crudRepository);
+
+        DependencyDomain domainByPath = repository.findDomainByPath(ANY_PATH);
+
+        Assert.assertEquals(domain, domainByPath);
+    }
+
     private DependencyCrudRepository getMock() {
         return Mockito.mock(DependencyCrudRepository.class);
     }

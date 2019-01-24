@@ -50,6 +50,6 @@ public class DependencyRepository {
             return domain;
         }
 
-        return null;
+        return domainList.get(0);
     }
 }
