@@ -9,7 +9,7 @@ import java.net.URL;
 public class NetworkRepository {
 
 
-    static final String HTTPS_REPOSITORY_URL = "https://maven.google.com";
+    static final String HTTPS_REPOSITORY_URL = "https://jcenter.bintray.com/";
     private Callback callback;
 
     public NetworkRepository(Callback callback) {
