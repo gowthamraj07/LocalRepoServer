@@ -13,6 +13,7 @@ public class DependencyDomain {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
     private String path;
+    private String host;
 
     public void setRequestedPath(String path) {
         this.path = path;
@@ -37,5 +38,13 @@ public class DependencyDomain {
 
     public String getPath() {
         return path;
+    }
+
+    public String getHost() {
+        return host;
+    }
+
+    public void setHost(String host) {
+        this.host = host;
     }
 }

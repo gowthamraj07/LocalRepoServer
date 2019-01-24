@@ -2,6 +2,7 @@ package com.localrepo.server.repository;
 
 import com.localrepo.server.domain.DependencyDomain;
 
+import java.net.URI;
 import java.util.List;
 
 public class DependencyRepository {
@@ -39,7 +40,16 @@ public class DependencyRepository {
     }
 
     public DependencyDomain findDomainByPath(String path) {
-        crudRepository.findByPath(path);
+        List<DependencyDomain> domainList = crudRepository.findByPath(path);
+
+        if (domainList.isEmpty()) {
+            DependencyDomain domain = new DependencyDomain();
+            URI uri = URI.create(path);
+            domain.setHost(uri.getScheme() + "://" + uri.getHost() + ":" + uri.getPort());
+            domain.setRequestedPath(uri.getPath());
+            return domain;
+        }
+
         return null;
     }
 }
