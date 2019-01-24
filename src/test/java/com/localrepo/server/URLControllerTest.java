@@ -32,10 +32,10 @@ public class URLControllerTest {
 
     @Before
     public void setUp() {
-        File file = new File("./123");
+        File file = new File(PREFIX + DIRECTORY_ID);
         if (!file.exists()) {
             file.mkdir();
-            File newFile = new File("./123/test.jar");
+            File newFile = new File(PREFIX + DIRECTORY_ID + "/test.jar");
             try {
                 newFile.createNewFile();
             } catch (IOException e) {
