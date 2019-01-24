@@ -1,28 +1,31 @@
 package com.localrepo.server.repository;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class NetworkRepositoryTest {
+
+    private static final String REQUESTED_URL_PATH = "http://localhost:8081/test/test.html";
+    private URL source;
+
+    @Before
+    public void setUp() throws Exception {
+        source = new URL(REQUESTED_URL_PATH);
+    }
 
     @Test
     public void shouldReturnLastPartIfItHasSlash() {
         NetworkRepository.Callback callback = Mockito.mock(NetworkRepository.Callback.class);
         NetworkRepository repository = new NetworkRepository(callback);
 
-        String fileName = null;
-        try {
-            fileName = repository.getFileName(new URL("http://localhost:8081/test/test.html"));
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        }
+        String fileName = repository.getFileName(source);
 
         assertEquals("test.html", fileName);
     }
@@ -32,9 +35,9 @@ public class NetworkRepositoryTest {
         NetworkRepository.Callback callback = Mockito.mock(NetworkRepository.Callback.class);
         NetworkRepository repository = new FailureNetworkRepository(callback);
 
-        repository.downloadDependency("http://localhost:8081/test/test.html", "any local directory path");
+        repository.downloadDependency(REQUESTED_URL_PATH, "any local directory path");
 
-        Mockito.verify(callback).onError("http://localhost:8081/test/test.html", "error message");
+        Mockito.verify(callback).onError(REQUESTED_URL_PATH, "error message");
     }
 
     private class FailureNetworkRepository extends NetworkRepository {
