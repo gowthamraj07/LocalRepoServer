@@ -32,7 +32,7 @@ public class DependencyRepository {
     }
 
     public List<DependencyDomain> list() {
-        return null;
+        return crudRepository.findAll();
     }
 
     public void update(DependencyDomain domain) {

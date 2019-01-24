@@ -10,7 +10,7 @@ import java.util.List;
 @Repository
 public interface DependencyCrudRepository extends CrudRepository<DependencyDomain, Long> {
     @Override
-    Iterable<DependencyDomain> findAll();
+    List<DependencyDomain> findAll();
 
     List<DependencyDomain> findByPath(String path);
 
