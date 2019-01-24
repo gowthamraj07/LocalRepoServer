@@ -29,4 +29,8 @@ public class DependencyRepository {
         curdRepository.save(domain);
         return "" + nextId;
     }
+
+    public List<DependencyDomain> list() {
+        return null;
+    }
 }

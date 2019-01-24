@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.*;
+import java.util.List;
 
 @Controller
 public class URLController {
@@ -79,5 +80,9 @@ public class URLController {
         }
 
         return new byte[0];
+    }
+
+    public List<DependencyDomain> listAvailableDependencies() {
+        return repository.list();
     }
 }

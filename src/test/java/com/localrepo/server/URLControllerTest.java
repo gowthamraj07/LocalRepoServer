@@ -1,20 +1,20 @@
 package com.localrepo.server;
 
 import com.localrepo.server.domain.DependencyDomain;
+import com.localrepo.server.domain.RequestURLDomain;
 import com.localrepo.server.repository.DependencyCrudRepository;
 import com.localrepo.server.repository.DependencyRepository;
 import com.localrepo.server.repository.FileRepository;
 import com.localrepo.server.repository.NetworkRepository;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.*;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Collections;
+import java.util.List;
 
 public class URLControllerTest {
 
@@ -115,6 +115,25 @@ public class URLControllerTest {
         Mockito.verifyZeroInteractions(networkRepository);
     }
 
+    @Test
+    public void shouldMakeRepositoryCallToListAvailableDependencies() {
+        controller.listAvailableDependencies();
+
+        Mockito.verify(repository).list();
+    }
+
+    @Test
+    public void shouldListDependencies() {
+        List<DependencyDomain> requestUrlDomainList = Collections.emptyList();
+        repository = new FakeRepository(requestUrlDomainList);
+        Mockito.when(fileRepository.isDirectoryExists(PREFIX + DIRECTORY_ID)).thenReturn(true);
+        controller = new URLController(writer, repository, fileRepository, networkRepository);
+
+        List<DependencyDomain> actualResponseDomainList = controller.listAvailableDependencies();
+
+        Assert.assertEquals(requestUrlDomainList, actualResponseDomainList);
+    }
+
     @AfterClass
     public static void tearDown() {
         File newFile = new File(PREFIX + DIRECTORY_ID + "/test.jar");
@@ -136,6 +155,20 @@ public class URLControllerTest {
         @Override
         public String getId(DependencyDomain domain) {
             return DIRECTORY_ID;
+        }
+    }
+
+    private class FakeRepository extends DependencyRepository {
+        private List<DependencyDomain> requestUrlDomainList;
+
+        FakeRepository(List<DependencyDomain> requestUrlDomainList) {
+            super(curdRepository);
+            this.requestUrlDomainList = requestUrlDomainList;
+        }
+
+        @Override
+        public List<DependencyDomain> list() {
+            return requestUrlDomainList;
         }
     }
 }
