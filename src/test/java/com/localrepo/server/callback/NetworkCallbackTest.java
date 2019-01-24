@@ -4,8 +4,6 @@ import com.localrepo.server.repository.DependencyRepository;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import static org.junit.Assert.*;
-
 public class NetworkCallbackTest {
 
     private static final String ANY_PATH = "any path";
