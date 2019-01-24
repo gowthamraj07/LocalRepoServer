@@ -93,5 +93,10 @@ public class URLController {
         public void onError(String url, String message) {
 
         }
+
+        @Override
+        public void onSuccess(String urlPath) {
+
+        }
     }
 }

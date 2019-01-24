@@ -9,7 +9,7 @@ import java.net.URL;
 public class NetworkRepository {
 
 
-    private static final String HTTPS_REPOSITORY_URL = "https://maven.google.com";
+    static final String HTTPS_REPOSITORY_URL = "https://maven.google.com";
     private Callback callback;
 
     public NetworkRepository(Callback callback) {
@@ -31,6 +31,7 @@ public class NetworkRepository {
             file.createNewFile();
             downloadFile(source, file);
             System.out.println("File created");
+            callback.onSuccess(spec);
         } catch (IOException e) {
             //e.printStackTrace();
             callback.onError(path, e.getMessage());
@@ -48,5 +49,7 @@ public class NetworkRepository {
 
     public interface Callback {
         void onError(String url, String message);
+
+        void onSuccess(String urlPath);
     }
 }

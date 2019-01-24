@@ -8,16 +8,17 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 
+import static com.localrepo.server.repository.NetworkRepository.HTTPS_REPOSITORY_URL;
 import static org.junit.Assert.assertEquals;
 
 public class NetworkRepositoryTest {
 
-    private static final String REQUESTED_URL_PATH = "http://localhost:8081/test/test.html";
+    private static final String REQUESTED_URL_PATH = "/test/test.html";
     private URL source;
 
     @Before
     public void setUp() throws Exception {
-        source = new URL(REQUESTED_URL_PATH);
+        source = new URL(HTTPS_REPOSITORY_URL + REQUESTED_URL_PATH);
     }
 
     @Test
@@ -40,6 +41,16 @@ public class NetworkRepositoryTest {
         Mockito.verify(callback).onError(REQUESTED_URL_PATH, "error message");
     }
 
+    @Test
+    public void shouldCallOnSuccessWhenAbleToDownloadFileFromRequestedUrl() {
+        NetworkRepository.Callback callback = Mockito.mock(NetworkRepository.Callback.class);
+        NetworkRepository repository = new SuccessNetworkRepository(callback);
+
+        repository.downloadDependency(REQUESTED_URL_PATH, "any local directory path");
+
+        Mockito.verify(callback).onSuccess(HTTPS_REPOSITORY_URL + REQUESTED_URL_PATH);
+    }
+
     private class FailureNetworkRepository extends NetworkRepository {
 
         FailureNetworkRepository(Callback callback) {
@@ -49,6 +60,17 @@ public class NetworkRepositoryTest {
         @Override
         void downloadFile(URL source, File file) throws IOException {
             throw new IOException("error message");
+        }
+    }
+
+    private class SuccessNetworkRepository extends NetworkRepository {
+        SuccessNetworkRepository(Callback callback) {
+            super(callback);
+        }
+
+        @Override
+        void downloadFile(URL source, File file) throws IOException {
+
         }
     }
 }
