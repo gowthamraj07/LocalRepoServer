@@ -12,7 +12,6 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 
@@ -20,7 +19,7 @@ public class URLControllerTest {
 
     private static final String ANY_PATH = "any path";
     private static final String DIRECTORY_ID = "123";
-    public static final String PREFIX = "./";
+    private static final String PREFIX = "./";
 
     private final DependencyCrudRepository curdRepository = Mockito.mock(DependencyCrudRepository.class);
 
