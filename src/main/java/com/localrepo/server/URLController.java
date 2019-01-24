@@ -82,6 +82,8 @@ public class URLController {
         return new byte[0];
     }
 
+    @RequestMapping(path = "/list")
+    @ResponseBody
     public List<DependencyDomain> listAvailableDependencies() {
         return repository.list();
     }
