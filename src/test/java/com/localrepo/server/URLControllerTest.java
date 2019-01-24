@@ -20,6 +20,7 @@ public class URLControllerTest {
 
     private static final String ANY_PATH = "any path";
     private static final String DIRECTORY_ID = "123";
+    public static final String PREFIX = "./";
 
     private final DependencyCrudRepository curdRepository = Mockito.mock(DependencyCrudRepository.class);
 
@@ -75,8 +76,8 @@ public class URLControllerTest {
 
         testControllerMethod();
 
-        Mockito.verify(fileRepository).isDirectoryExists(DIRECTORY_ID);
-        Mockito.verify(fileRepository).createDirectory(DIRECTORY_ID);
+        Mockito.verify(fileRepository).isDirectoryExists(PREFIX +DIRECTORY_ID);
+        Mockito.verify(fileRepository).createDirectory(PREFIX +DIRECTORY_ID);
     }
 
     @Test
@@ -87,7 +88,7 @@ public class URLControllerTest {
 
         testControllerMethod();
 
-        Mockito.verify(fileRepository).isDirectoryExists(DIRECTORY_ID);
+        Mockito.verify(fileRepository).isDirectoryExists(PREFIX +DIRECTORY_ID);
         Mockito.verify(fileRepository, Mockito.times(0)).createDirectory(DIRECTORY_ID);
     }
 
@@ -106,7 +107,7 @@ public class URLControllerTest {
     @Test
     public void shouldNotMakeNetworkCallIfDataAlreadyExists() {
         repository = new FakeFailureRepository();
-        Mockito.when(fileRepository.isDirectoryExists(DIRECTORY_ID)).thenReturn(true);
+        Mockito.when(fileRepository.isDirectoryExists(PREFIX +DIRECTORY_ID)).thenReturn(true);
         controller = new URLController(writer, repository, fileRepository, networkRepository);
 
         testControllerMethod();
@@ -127,11 +128,7 @@ public class URLControllerTest {
     }
 
     private void testControllerMethod() {
-        try {
-            controller.getDependency(ANY_PATH);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
+        controller.getDependency(ANY_PATH);
     }
 
     private class FakeFailureRepository extends DependencyRepository {
