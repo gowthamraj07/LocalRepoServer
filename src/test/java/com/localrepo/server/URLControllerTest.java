@@ -1,5 +1,6 @@
 package com.localrepo.server;
 
+import com.localrepo.server.callback.NetworkCallback;
 import com.localrepo.server.domain.DependencyDomain;
 import com.localrepo.server.repository.DependencyCrudRepository;
 import com.localrepo.server.repository.DependencyRepository;
@@ -31,6 +32,7 @@ public class URLControllerTest {
     private DependencyRepository repository;
     private FileRepository fileRepository;
     private NetworkRepository networkRepository;
+    public static final DependencyDomain MOCK_DEPENDENCY_DOMAIN = new DependencyDomain();
 
     @Before
     public void setUp() {
@@ -136,6 +138,17 @@ public class URLControllerTest {
         Assert.assertEquals(requestUrlDomainList, actualResponseDomainList);
     }
 
+    @Test
+    public void shouldUpdateUrlContextWhenRequestedUrlIsSuccessfullyDownloaded() {
+        NetworkRepository.Callback callback = new SuccessNetworkCallback(repository);
+        networkRepository = new SuccessNetworkRepository(callback);
+        controller = new URLController(writer, repository, fileRepository, networkRepository);
+
+        controller.getDependency(ANY_PATH);
+
+        Mockito.verify(repository).update(MOCK_DEPENDENCY_DOMAIN);
+    }
+
     @AfterClass
     public static void tearDown() {
         File newFile = new File(PREFIX + DIRECTORY_ID + "/test.jar");
@@ -171,6 +184,31 @@ public class URLControllerTest {
         @Override
         public List<DependencyDomain> list() {
             return requestUrlDomainList;
+        }
+    }
+
+    private class SuccessNetworkRepository extends NetworkRepository {
+        private Callback callback;
+
+        SuccessNetworkRepository(Callback callback) {
+            super(callback);
+            this.callback = callback;
+        }
+
+        @Override
+        public void downloadDependency(String path, String localDirectoryPath) {
+            callback.onSuccess(path);
+        }
+    }
+
+    private class SuccessNetworkCallback extends NetworkCallback {
+        SuccessNetworkCallback(DependencyRepository repository) {
+            super(repository);
+        }
+
+        @Override
+        protected DependencyDomain getDomain(String urlPath) {
+            return MOCK_DEPENDENCY_DOMAIN;
         }
     }
 }

@@ -33,4 +33,9 @@ public class DependencyRepository {
     public List<DependencyDomain> list() {
         return null;
     }
+
+    public void update(DependencyDomain domain) {
+        curdRepository.save(domain);
+    }
+
 }

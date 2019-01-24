@@ -1,5 +1,6 @@
 package com.localrepo.server;
 
+import com.localrepo.server.callback.NetworkCallback;
 import com.localrepo.server.domain.DependencyDomain;
 import com.localrepo.server.repository.DependencyCrudRepository;
 import com.localrepo.server.repository.DependencyRepository;
@@ -28,7 +29,7 @@ public class URLController {
         this.writer = new PrintWriter(System.out);
         this.repository = new DependencyRepository(curdRepository);
         this.fileRepository = new FileRepository();
-        this.networkRepository = new NetworkRepository(new NetworkCallback());
+        this.networkRepository = new NetworkRepository(new NetworkCallback(this.repository));
     }
 
     URLController(PrintWriter writer, DependencyRepository repository, FileRepository fileRepository, NetworkRepository networkRepository) {
@@ -88,15 +89,4 @@ public class URLController {
         return repository.list();
     }
 
-    private class NetworkCallback implements NetworkRepository.Callback {
-        @Override
-        public void onError(String url, String message) {
-
-        }
-
-        @Override
-        public void onSuccess(String urlPath) {
-
-        }
-    }
 }
