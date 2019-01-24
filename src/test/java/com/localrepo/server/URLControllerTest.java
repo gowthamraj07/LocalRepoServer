@@ -19,7 +19,7 @@ import java.io.PrintWriter;
 public class URLControllerTest {
 
     private static final String ANY_PATH = "any path";
-    private static final String DIRECTORY_ID = "123";
+    private static final String DIRECTORY_ID = "temp";
     private static final String PREFIX = "./";
 
     private final DependencyCrudRepository curdRepository = Mockito.mock(DependencyCrudRepository.class);
