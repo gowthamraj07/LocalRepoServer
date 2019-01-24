@@ -10,6 +10,11 @@ public class NetworkRepository {
 
 
     private static final String HTTPS_REPOSITORY_URL = "https://maven.google.com";
+    private Callback callback;
+
+    public NetworkRepository(Callback callback) {
+        this.callback = callback;
+    }
 
     public void downloadDependency(String path, String localDirectoryPath) {
         try {
@@ -24,15 +29,24 @@ public class NetworkRepository {
             }
 
             file.createNewFile();
-            FileUtils.copyURLToFile(source, file);
+            downloadFile(source, file);
             System.out.println("File created");
         } catch (IOException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
+            callback.onError(path, e.getMessage());
         }
+    }
+
+    void downloadFile(URL source, File file) throws IOException {
+        FileUtils.copyURLToFile(source, file);
     }
 
     String getFileName(URL source) {
         String[] split = source.getPath().split("\\/");
         return split[split.length - 1];
+    }
+
+    public interface Callback {
+        void onError(String url, String message);
     }
 }

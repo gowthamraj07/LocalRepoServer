@@ -28,7 +28,7 @@ public class URLController {
         this.writer = new PrintWriter(System.out);
         this.repository = new DependencyRepository(curdRepository);
         this.fileRepository = new FileRepository();
-        this.networkRepository = new NetworkRepository();
+        this.networkRepository = new NetworkRepository(new NetworkCallback());
     }
 
     URLController(PrintWriter writer, DependencyRepository repository, FileRepository fileRepository, NetworkRepository networkRepository) {
@@ -86,5 +86,12 @@ public class URLController {
     @ResponseBody
     public List<DependencyDomain> listAvailableDependencies() {
         return repository.list();
+    }
+
+    private class NetworkCallback implements NetworkRepository.Callback {
+        @Override
+        public void onError(String url, String message) {
+
+        }
     }
 }
