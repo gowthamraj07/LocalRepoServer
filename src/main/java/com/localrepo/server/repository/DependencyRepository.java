@@ -38,4 +38,8 @@ public class DependencyRepository {
         curdRepository.save(domain);
     }
 
+    public DependencyDomain findDomainByPath(String path) {
+
+        return null;
+    }
 }

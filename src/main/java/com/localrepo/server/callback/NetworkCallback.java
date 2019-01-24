@@ -22,6 +22,6 @@ public class NetworkCallback implements NetworkRepository.Callback {
     }
 
     protected DependencyDomain getDomain(String urlPath) {
-        return null;
+        return repository.findDomainByPath(urlPath);
     }
 }
