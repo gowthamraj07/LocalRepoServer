@@ -76,8 +76,8 @@ public class URLControllerTest {
 
         controller.getDependency(ANY_PATH);
 
-        Mockito.verify(fileRepository).isDirectoryExists(PREFIX +DIRECTORY_ID);
-        Mockito.verify(fileRepository).createDirectory(PREFIX +DIRECTORY_ID);
+        Mockito.verify(fileRepository).isDirectoryExists(PREFIX + DIRECTORY_ID);
+        Mockito.verify(fileRepository).createDirectory(PREFIX + DIRECTORY_ID);
     }
 
     @Test
@@ -88,7 +88,7 @@ public class URLControllerTest {
 
         controller.getDependency(ANY_PATH);
 
-        Mockito.verify(fileRepository).isDirectoryExists(PREFIX +DIRECTORY_ID);
+        Mockito.verify(fileRepository).isDirectoryExists(PREFIX + DIRECTORY_ID);
         Mockito.verify(fileRepository, Mockito.times(0)).createDirectory(DIRECTORY_ID);
     }
 
@@ -107,7 +107,7 @@ public class URLControllerTest {
     @Test
     public void shouldNotMakeNetworkCallIfDataAlreadyExists() {
         repository = new FakeFailureRepository();
-        Mockito.when(fileRepository.isDirectoryExists(PREFIX +DIRECTORY_ID)).thenReturn(true);
+        Mockito.when(fileRepository.isDirectoryExists(PREFIX + DIRECTORY_ID)).thenReturn(true);
         controller = new URLController(writer, repository, fileRepository, networkRepository);
 
         controller.getDependency(ANY_PATH);
@@ -117,12 +117,12 @@ public class URLControllerTest {
 
     @AfterClass
     public static void tearDown() {
-        File newFile = new File("./123/test.jar");
-        if(newFile.exists()) {
+        File newFile = new File(PREFIX + DIRECTORY_ID + "/test.jar");
+        if (newFile.exists()) {
             newFile.delete();
         }
-        File directory = new File("./123");
-        if(directory.exists()) {
+        File directory = new File(PREFIX + DIRECTORY_ID);
+        if (directory.exists()) {
             directory.delete();
         }
     }
