@@ -13,7 +13,7 @@ public class NetworkCallback implements NetworkRepository.Callback {
 
     @Override
     public void onError(String url, String message) {
-
+        repository.delete(getDomain(url));
     }
 
     @Override

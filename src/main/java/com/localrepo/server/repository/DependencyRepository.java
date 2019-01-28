@@ -54,4 +54,8 @@ public class DependencyRepository {
         dependencyDomain.setHost(NetworkRepository.HTTPS_REPOSITORY_URL);
         return dependencyDomain;
     }
+
+    public void delete(DependencyDomain domain) {
+        crudRepository.delete(domain);
+    }
 }
