@@ -31,7 +31,7 @@ public class NetworkRepository {
             file.createNewFile();
             downloadFile(source, file);
             System.out.println("File created");
-            callback.onSuccess(spec);
+            callback.onSuccess(path);
         } catch (IOException e) {
             //e.printStackTrace();
             callback.onError(path, e.getMessage());

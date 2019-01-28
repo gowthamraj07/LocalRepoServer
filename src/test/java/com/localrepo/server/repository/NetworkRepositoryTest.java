@@ -48,7 +48,7 @@ public class NetworkRepositoryTest {
 
         repository.downloadDependency(REQUESTED_URL_PATH, "any local directory path");
 
-        Mockito.verify(callback).onSuccess(HTTPS_REPOSITORY_URL + REQUESTED_URL_PATH);
+        Mockito.verify(callback).onSuccess( REQUESTED_URL_PATH);
     }
 
     private class FailureNetworkRepository extends NetworkRepository {
