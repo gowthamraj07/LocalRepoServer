@@ -19,6 +19,20 @@ public class FileRepository {
     }
 
     public void deleteDirectory(String folderName) {
+        File folder = new File(getRepoDirectoryPath() + folderName);
+        if(!folder.exists()) {
+            return;
+        }
 
+        if(!folder.isDirectory()) {
+            return;
+        }
+
+        File[] files = folder.listFiles();
+        for (File file : files) {
+            file.delete();
+        }
+
+        folder.delete();
     }
 }
