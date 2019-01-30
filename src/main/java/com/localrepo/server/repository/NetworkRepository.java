@@ -18,24 +18,28 @@ public class NetworkRepository {
 
     public void downloadDependency(String path, String localDirectoryPath) {
         try {
-            String spec = HTTPS_REPOSITORY_URL + path;
-            System.out.println("spec : " + spec);
-            URL source = new URL(spec);
-            System.out.println(source.toString());
-            System.out.println("file to create : " + (localDirectoryPath + "/" + getFileName(source)));
-            File file = new File(localDirectoryPath + "/" + getFileName(source));
-            if (file.getParentFile() != null && !file.getParentFile().exists()) {
-                file.getParentFile().mkdirs();
-            }
-
-            file.createNewFile();
-            downloadFile(source, file);
+            downloadDependencyFrom(path, localDirectoryPath, HTTPS_REPOSITORY_URL);
             System.out.println("File created");
             callback.onSuccess(path, HTTPS_REPOSITORY_URL);
         } catch (IOException e) {
             //e.printStackTrace();
             callback.onError(path, e.getMessage());
         }
+    }
+
+    private void downloadDependencyFrom(String path, String localDirectoryPath, String host) throws IOException {
+        String spec = host + path;
+        System.out.println("spec : " + spec);
+        URL source = new URL(spec);
+        System.out.println(source.toString());
+        System.out.println("file to create : " + (localDirectoryPath + "/" + getFileName(source)));
+        File file = new File(localDirectoryPath + "/" + getFileName(source));
+        if (file.getParentFile() != null && !file.getParentFile().exists()) {
+            file.getParentFile().mkdirs();
+        }
+
+        file.createNewFile();
+        downloadFile(source, file);
     }
 
     void downloadFile(URL source, File file) throws IOException {
