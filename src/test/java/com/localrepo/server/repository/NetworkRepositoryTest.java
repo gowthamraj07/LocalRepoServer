@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.times;
 
 public class NetworkRepositoryTest {
 
@@ -51,7 +52,7 @@ public class NetworkRepositoryTest {
 
         repository.downloadDependency(REQUESTED_URL_PATH, "any local directory path");
 
-        Mockito.verify(callback).onSuccess(REQUESTED_URL_PATH, HTTPS_REPOSITORY_URL);
+        Mockito.verify(callback, times(1)).onSuccess(REQUESTED_URL_PATH, HTTPS_REPOSITORY_URL);
     }
 
     private class FailureNetworkRepository extends NetworkRepository {
