@@ -50,8 +50,7 @@ public class DependencyRepository {
             return domain;
         }
 
-        DependencyDomain dependencyDomain = domainList.get(0);
-        return dependencyDomain;
+        return domainList.get(0);
     }
 
     public void delete(DependencyDomain domain) {
