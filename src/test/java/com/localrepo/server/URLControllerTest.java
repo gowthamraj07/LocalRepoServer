@@ -203,7 +203,7 @@ public class URLControllerTest {
 
     private class SuccessNetworkCallback extends NetworkCallback {
         SuccessNetworkCallback(DependencyRepository repository) {
-            super(repository);
+            super(repository, fileRepository);
         }
 
         @Override

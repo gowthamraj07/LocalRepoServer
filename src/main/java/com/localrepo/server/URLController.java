@@ -29,7 +29,7 @@ public class URLController {
         this.writer = new PrintWriter(System.out);
         this.repository = new DependencyRepository(curdRepository);
         this.fileRepository = new FileRepository();
-        this.networkRepository = new NetworkRepository(new NetworkCallback(this.repository));
+        this.networkRepository = new NetworkRepository(new NetworkCallback(this.repository, fileRepository));
     }
 
     URLController(PrintWriter writer, DependencyRepository repository, FileRepository fileRepository, NetworkRepository networkRepository) {

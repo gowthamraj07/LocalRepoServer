@@ -17,4 +17,8 @@ public class FileRepository {
     public String getRepoDirectoryPath() {
         return "./local_repo/";
     }
+
+    public void deleteDirectory(String folderName) {
+
+    }
 }
