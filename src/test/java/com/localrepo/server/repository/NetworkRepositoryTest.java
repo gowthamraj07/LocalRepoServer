@@ -8,12 +8,12 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 
-import static com.localrepo.server.repository.NetworkRepository.HTTPS_REPOSITORY_URL;
 import static org.junit.Assert.assertEquals;
 
 public class NetworkRepositoryTest {
 
     private static final String REQUESTED_URL_PATH = "/test/test.html";
+    private static final String HTTPS_REPOSITORY_URL = "http://localhost:8080/";
     private URL source;
 
     @Before
@@ -58,9 +58,10 @@ public class NetworkRepositoryTest {
         }
 
         @Override
-        void downloadFile(URL source, File file) throws IOException {
+        void downloadDependencyFrom(String path, String localDirectoryPath, String host) throws IOException {
             throw new IOException("error message");
         }
+
     }
 
     private class SuccessNetworkRepository extends NetworkRepository {
@@ -69,8 +70,13 @@ public class NetworkRepositoryTest {
         }
 
         @Override
-        void downloadFile(URL source, File file) throws IOException {
+        void downloadDependencyFrom(String path, String localDirectoryPath, String host) throws IOException {
 
+        }
+
+        @Override
+        String getHttpsRepositoryUrl() {
+            return NetworkRepositoryTest.HTTPS_REPOSITORY_URL;
         }
     }
 }

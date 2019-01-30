@@ -18,16 +18,20 @@ public class NetworkRepository {
 
     public void downloadDependency(String path, String localDirectoryPath) {
         try {
-            downloadDependencyFrom(path, localDirectoryPath, HTTPS_REPOSITORY_URL);
+            downloadDependencyFrom(path, localDirectoryPath, getHttpsRepositoryUrl());
             System.out.println("File created");
-            callback.onSuccess(path, HTTPS_REPOSITORY_URL);
+            callback.onSuccess(path, getHttpsRepositoryUrl());
         } catch (IOException e) {
             //e.printStackTrace();
             callback.onError(path, e.getMessage());
         }
     }
 
-    private void downloadDependencyFrom(String path, String localDirectoryPath, String host) throws IOException {
+    String getHttpsRepositoryUrl() {
+        return HTTPS_REPOSITORY_URL;
+    }
+
+    void downloadDependencyFrom(String path, String localDirectoryPath, String host) throws IOException {
         String spec = host + path;
         System.out.println("spec : " + spec);
         URL source = new URL(spec);
@@ -39,10 +43,6 @@ public class NetworkRepository {
         }
 
         file.createNewFile();
-        downloadFile(source, file);
-    }
-
-    void downloadFile(URL source, File file) throws IOException {
         FileUtils.copyURLToFile(source, file);
     }
 
