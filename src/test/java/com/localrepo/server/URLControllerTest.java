@@ -197,7 +197,7 @@ public class URLControllerTest {
 
         @Override
         public void downloadDependency(String path, String localDirectoryPath) {
-            callback.onSuccess(path);
+            callback.onSuccess(ANY_PATH, path);
         }
     }
 

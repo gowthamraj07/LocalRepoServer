@@ -31,7 +31,7 @@ public class NetworkRepository {
             file.createNewFile();
             downloadFile(source, file);
             System.out.println("File created");
-            callback.onSuccess(path);
+            callback.onSuccess(path, HTTPS_REPOSITORY_URL);
         } catch (IOException e) {
             //e.printStackTrace();
             callback.onError(path, e.getMessage());
@@ -50,6 +50,6 @@ public class NetworkRepository {
     public interface Callback {
         void onError(String url, String message);
 
-        void onSuccess(String urlPath);
+        void onSuccess(String path, String host);
     }
 }

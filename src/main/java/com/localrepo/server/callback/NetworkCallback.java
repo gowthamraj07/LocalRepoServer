@@ -17,8 +17,10 @@ public class NetworkCallback implements NetworkRepository.Callback {
     }
 
     @Override
-    public void onSuccess(String urlPath) {
-        repository.update(getDomain(urlPath));
+    public void onSuccess(String path, String host) {
+        DependencyDomain domain = getDomain(path);
+        domain.setHost(host);
+        repository.update(domain);
     }
 
     protected DependencyDomain getDomain(String urlPath) {
