@@ -60,7 +60,13 @@ public class URLController {
 
         File directoryPath = new File(localFilePath);
         File inputFile = null;
-        for (File file : directoryPath.listFiles()) {
+        File[] files = directoryPath.listFiles();
+
+        if(files == null) {
+            return new byte[0];
+        }
+
+        for (File file : files) {
             if (file.getName().equals(".") || file.getName().equals("..")) {
                 continue;
             }
