@@ -5,25 +5,31 @@ import org.apache.commons.io.FileUtils;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.List;
 
 public class NetworkRepository {
 
 
-    static final String HTTPS_REPOSITORY_URL = "https://maven.google.com";
+    public static final String HTTPS_REPOSITORY_URL = "https://maven.google.com";
     private Callback callback;
+    private List<String> hostUrls;
 
-    public NetworkRepository(Callback callback) {
+    public NetworkRepository(Callback callback, List<String> hostUrls) {
         this.callback = callback;
+        this.hostUrls = hostUrls;
     }
 
     public void downloadDependency(String path, String localDirectoryPath) {
-        try {
-            downloadDependencyFrom(path, localDirectoryPath, getHttpsRepositoryUrl());
-            System.out.println("File created");
-            callback.onSuccess(path, getHttpsRepositoryUrl());
-        } catch (IOException e) {
-            //e.printStackTrace();
-            callback.onError(path, e.getMessage());
+        for (String hostUrl : hostUrls) {
+            try {
+                downloadDependencyFrom(path, localDirectoryPath, getHttpsRepositoryUrl());
+                System.out.println("File created");
+                callback.onSuccess(path, hostUrl);
+                break;
+            } catch (IOException e) {
+                //e.printStackTrace();
+                callback.onError(path, e.getMessage());
+            }
         }
     }
 

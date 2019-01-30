@@ -4,9 +4,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.Collections;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
@@ -15,16 +16,18 @@ public class NetworkRepositoryTest {
     private static final String REQUESTED_URL_PATH = "/test/test.html";
     private static final String HTTPS_REPOSITORY_URL = "http://localhost:8080/";
     private URL source;
+    private List<String> hostUrls;
 
     @Before
     public void setUp() throws Exception {
         source = new URL(HTTPS_REPOSITORY_URL + REQUESTED_URL_PATH);
+        hostUrls = Collections.singletonList(HTTPS_REPOSITORY_URL);
     }
 
     @Test
     public void shouldReturnLastPartIfItHasSlash() {
         NetworkRepository.Callback callback = Mockito.mock(NetworkRepository.Callback.class);
-        NetworkRepository repository = new NetworkRepository(callback);
+        NetworkRepository repository = new NetworkRepository(callback, hostUrls);
 
         String fileName = repository.getFileName(source);
 
@@ -44,7 +47,7 @@ public class NetworkRepositoryTest {
     @Test
     public void shouldCallOnSuccessWhenAbleToDownloadFileFromRequestedUrl() {
         NetworkRepository.Callback callback = Mockito.mock(NetworkRepository.Callback.class);
-        NetworkRepository repository = new SuccessNetworkRepository(callback);
+        NetworkRepository repository = new SuccessNetworkRepository(callback, hostUrls);
 
         repository.downloadDependency(REQUESTED_URL_PATH, "any local directory path");
 
@@ -54,7 +57,7 @@ public class NetworkRepositoryTest {
     private class FailureNetworkRepository extends NetworkRepository {
 
         FailureNetworkRepository(Callback callback) {
-            super(callback);
+            super(callback, hostUrls);
         }
 
         @Override
@@ -65,8 +68,8 @@ public class NetworkRepositoryTest {
     }
 
     private class SuccessNetworkRepository extends NetworkRepository {
-        SuccessNetworkRepository(Callback callback) {
-            super(callback);
+        SuccessNetworkRepository(Callback callback, List<String> hostUrls) {
+            super(callback, hostUrls);
         }
 
         @Override

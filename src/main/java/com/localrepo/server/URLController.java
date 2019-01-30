@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.*;
+import java.util.Collections;
 import java.util.List;
 
 @Controller
@@ -29,7 +30,8 @@ public class URLController {
         this.writer = new PrintWriter(System.out);
         this.repository = new DependencyRepository(curdRepository);
         this.fileRepository = new FileRepository();
-        this.networkRepository = new NetworkRepository(new NetworkCallback(this.repository, fileRepository));
+        List<String> hostUrls = Collections.singletonList(NetworkRepository.HTTPS_REPOSITORY_URL);
+        this.networkRepository = new NetworkRepository(new NetworkCallback(this.repository, fileRepository), hostUrls);
     }
 
     URLController(PrintWriter writer, DependencyRepository repository, FileRepository fileRepository, NetworkRepository networkRepository) {
