@@ -29,6 +29,12 @@ public class FileRepository {
         }
 
         File[] files = folder.listFiles();
+
+        if(files == null) {
+            folder.delete();
+            return;
+        }
+
         for (File file : files) {
             file.delete();
         }
