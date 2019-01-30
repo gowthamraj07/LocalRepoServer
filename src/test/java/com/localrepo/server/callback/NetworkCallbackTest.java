@@ -9,7 +9,7 @@ import org.mockito.Mockito;
 public class NetworkCallbackTest {
 
     private static final String ANY_PATH = "any path";
-    public static final String ANY_HOST = "host";
+    private static final String ANY_HOST = "host";
 
     @Test
     public void shouldCallFindDomainByNameOfRepositoryClass() {
