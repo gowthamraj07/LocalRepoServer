@@ -51,7 +51,6 @@ public class DependencyRepository {
         }
 
         DependencyDomain dependencyDomain = domainList.get(0);
-        dependencyDomain.setHost(NetworkRepository.HTTPS_REPOSITORY_URL);
         return dependencyDomain;
     }
 
