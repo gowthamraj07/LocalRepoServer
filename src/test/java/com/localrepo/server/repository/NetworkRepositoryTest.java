@@ -93,10 +93,6 @@ public class NetworkRepositoryTest {
 
         }
 
-        @Override
-        String getHttpsRepositoryUrl() {
-            return NetworkRepositoryTest.FAKE_HTTPS_REPOSITORY_URL_1;
-        }
     }
 
     private class SpyFailureNetworkRepository extends NetworkRepository {

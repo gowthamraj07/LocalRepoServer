@@ -33,10 +33,6 @@ public class NetworkRepository {
         }
     }
 
-    String getHttpsRepositoryUrl() {
-        return HTTPS_REPOSITORY_URL;
-    }
-
     void downloadDependencyFrom(String path, String localDirectoryPath, String host) throws IOException {
         String spec = host + path;
         System.out.println("spec : " + spec);
