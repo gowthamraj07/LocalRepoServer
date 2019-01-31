@@ -6,7 +6,7 @@ import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -15,14 +15,16 @@ import static org.mockito.Mockito.times;
 public class NetworkRepositoryTest {
 
     private static final String REQUESTED_URL_PATH = "/test/test.html";
-    private static final String HTTPS_REPOSITORY_URL = "http://localhost:8080/";
+    private static final String FAKE_HTTPS_REPOSITORY_URL_1 = "http://localhost:8080/";
+    private static final String FAKE_HTTPS_REPOSITORY_URL_2 = "http://test:8080/";
+    private static final String FAKE_HTTPS_REPOSITORY_URL_3 = "http://test/";
     private URL source;
     private List<String> hostUrls;
 
     @Before
     public void setUp() throws Exception {
-        source = new URL(HTTPS_REPOSITORY_URL + REQUESTED_URL_PATH);
-        hostUrls = Collections.singletonList(HTTPS_REPOSITORY_URL);
+        source = new URL(FAKE_HTTPS_REPOSITORY_URL_1 + REQUESTED_URL_PATH);
+        hostUrls = Arrays.asList(FAKE_HTTPS_REPOSITORY_URL_1, FAKE_HTTPS_REPOSITORY_URL_2, FAKE_HTTPS_REPOSITORY_URL_3);
     }
 
     @Test
@@ -42,7 +44,7 @@ public class NetworkRepositoryTest {
 
         repository.downloadDependency(REQUESTED_URL_PATH, "any local directory path");
 
-        Mockito.verify(callback).onError(REQUESTED_URL_PATH, "error message");
+        Mockito.verify(callback, times(hostUrls.size())).onError(REQUESTED_URL_PATH, "error message");
     }
 
     @Test
@@ -52,7 +54,7 @@ public class NetworkRepositoryTest {
 
         repository.downloadDependency(REQUESTED_URL_PATH, "any local directory path");
 
-        Mockito.verify(callback, times(1)).onSuccess(REQUESTED_URL_PATH, HTTPS_REPOSITORY_URL);
+        Mockito.verify(callback, times(1)).onSuccess(REQUESTED_URL_PATH, FAKE_HTTPS_REPOSITORY_URL_1);
     }
 
     private class FailureNetworkRepository extends NetworkRepository {
@@ -80,7 +82,7 @@ public class NetworkRepositoryTest {
 
         @Override
         String getHttpsRepositoryUrl() {
-            return NetworkRepositoryTest.HTTPS_REPOSITORY_URL;
+            return NetworkRepositoryTest.FAKE_HTTPS_REPOSITORY_URL_1;
         }
     }
 }
