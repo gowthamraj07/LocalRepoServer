@@ -22,7 +22,7 @@ public class NetworkRepository {
     public void downloadDependency(String path, String localDirectoryPath) {
         for (String hostUrl : hostUrls) {
             try {
-                downloadDependencyFrom(path, localDirectoryPath, getHttpsRepositoryUrl());
+                downloadDependencyFrom(path, localDirectoryPath, hostUrl);
                 System.out.println("File created");
                 callback.onSuccess(path, hostUrl);
                 break;

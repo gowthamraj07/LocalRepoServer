@@ -10,7 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.*;
 
 public class NetworkRepositoryTest {
 
@@ -57,6 +57,19 @@ public class NetworkRepositoryTest {
         Mockito.verify(callback, times(1)).onSuccess(REQUESTED_URL_PATH, FAKE_HTTPS_REPOSITORY_URL_1);
     }
 
+    @Test
+    public void shouldPassThroughAllHostUrlWhenNetworkThrowsError() {
+        NetworkRepository.Callback callback = Mockito.mock(NetworkRepository.Callback.class);
+        SpyRepository spyRepository = mock(SpyRepository.class);
+        NetworkRepository repository = new SpyFailureNetworkRepository(callback, hostUrls, spyRepository);
+
+        repository.downloadDependency(REQUESTED_URL_PATH, "any local directory path");
+
+        verify(spyRepository).download(FAKE_HTTPS_REPOSITORY_URL_1);
+        verify(spyRepository).download(FAKE_HTTPS_REPOSITORY_URL_2);
+        verify(spyRepository).download(FAKE_HTTPS_REPOSITORY_URL_3);
+    }
+
     private class FailureNetworkRepository extends NetworkRepository {
 
         FailureNetworkRepository(Callback callback) {
@@ -84,5 +97,24 @@ public class NetworkRepositoryTest {
         String getHttpsRepositoryUrl() {
             return NetworkRepositoryTest.FAKE_HTTPS_REPOSITORY_URL_1;
         }
+    }
+
+    private class SpyFailureNetworkRepository extends NetworkRepository {
+        private final SpyRepository spyRepository;
+
+        SpyFailureNetworkRepository(Callback callback, List<String> hostUrls, SpyRepository spyRepository) {
+            super(callback, hostUrls);
+            this.spyRepository = spyRepository;
+        }
+
+        @Override
+        void downloadDependencyFrom(String path, String localDirectoryPath, String host) throws IOException {
+            spyRepository.download(host);
+            throw new IOException("error message");
+        }
+    }
+
+    private interface SpyRepository {
+        void download(String repositoryUrl);
     }
 }
