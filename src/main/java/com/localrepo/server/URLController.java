@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.*;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -30,7 +31,7 @@ public class URLController {
         this.writer = new PrintWriter(System.out);
         this.repository = new DependencyRepository(curdRepository);
         this.fileRepository = new FileRepository();
-        List<String> hostUrls = Collections.singletonList(NetworkRepository.GOOGLE_MAVEN_REPOSITORY_URL);
+        List<String> hostUrls = Arrays.asList(NetworkRepository.GOOGLE_MAVEN_REPOSITORY_URL, NetworkRepository.JCENTER_MAVEN_REPOSITORY_URL, NetworkRepository.MAVEN2_REPOSITORY_URL);
         this.networkRepository = new NetworkRepository(new NetworkCallback(this.repository, fileRepository), hostUrls);
     }
 

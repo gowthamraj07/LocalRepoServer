@@ -11,6 +11,9 @@ public class NetworkRepository {
 
 
     public static final String GOOGLE_MAVEN_REPOSITORY_URL = "https://maven.google.com";
+    public static final String JCENTER_MAVEN_REPOSITORY_URL = "https://jcenter.bintray.com/";
+    public static final String MAVEN2_REPOSITORY_URL = "http://repo1.maven.org/maven2";
+
     private Callback callback;
     private List<String> hostUrls;
 
