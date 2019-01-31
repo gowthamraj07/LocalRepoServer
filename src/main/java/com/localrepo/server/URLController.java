@@ -30,7 +30,7 @@ public class URLController {
         this.writer = new PrintWriter(System.out);
         this.repository = new DependencyRepository(curdRepository);
         this.fileRepository = new FileRepository();
-        List<String> hostUrls = Collections.singletonList(NetworkRepository.HTTPS_REPOSITORY_URL);
+        List<String> hostUrls = Collections.singletonList(NetworkRepository.GOOGLE_MAVEN_REPOSITORY_URL);
         this.networkRepository = new NetworkRepository(new NetworkCallback(this.repository, fileRepository), hostUrls);
     }
 

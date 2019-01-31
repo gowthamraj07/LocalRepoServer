@@ -10,7 +10,7 @@ import java.util.List;
 public class NetworkRepository {
 
 
-    public static final String HTTPS_REPOSITORY_URL = "https://maven.google.com";
+    public static final String GOOGLE_MAVEN_REPOSITORY_URL = "https://maven.google.com";
     private Callback callback;
     private List<String> hostUrls;
 

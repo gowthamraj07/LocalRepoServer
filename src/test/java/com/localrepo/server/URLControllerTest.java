@@ -191,7 +191,7 @@ public class URLControllerTest {
         private Callback callback;
 
         SuccessNetworkRepository(Callback callback) {
-            super(callback, Collections.singletonList(NetworkRepository.HTTPS_REPOSITORY_URL));
+            super(callback, Collections.singletonList(NetworkRepository.GOOGLE_MAVEN_REPOSITORY_URL));
             this.callback = callback;
         }
 
