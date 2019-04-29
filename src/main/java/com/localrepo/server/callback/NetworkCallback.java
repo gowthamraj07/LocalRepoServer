@@ -16,6 +16,16 @@ public class NetworkCallback implements NetworkRepository.Callback {
 
     @Override
     public void onError(String url, String message) {
+    	if(getDomain(url) == null) {
+    		System.out.println(">>>>>>>>"+url);
+    		return;
+    	}
+
+    	if(getDomain(url).getId() == null) {
+    		System.out.println(">>>>>>>> (id is null) :"+url);
+    		return;
+    	}
+
         String folderName = getDomain(url).getId().toString();
         fileRepository.deleteDirectory(folderName);
         repository.delete(getDomain(url));

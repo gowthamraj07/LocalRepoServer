@@ -23,16 +23,21 @@ public class NetworkRepository {
     }
 
     public void downloadDependency(String path, String localDirectoryPath) {
+        boolean isEligibleForDelete = true;
         for (String hostUrl : hostUrls) {
             try {
                 downloadDependencyFrom(path, localDirectoryPath, hostUrl);
                 System.out.println("File created");
                 callback.onSuccess(path, hostUrl);
+                isEligibleForDelete = false;
                 break;
             } catch (IOException e) {
                 //e.printStackTrace();
-                callback.onError(path, e.getMessage());
             }
+        }
+
+        if(isEligibleForDelete) {
+            callback.onError(path, "Unable to download dependency");
         }
     }
 
