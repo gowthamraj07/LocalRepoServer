@@ -56,4 +56,8 @@ public class DependencyRepository {
     public void delete(DependencyDomain domain) {
         crudRepository.delete(domain);
     }
+
+    public void deleteWithNull() {
+        crudRepository.deleteWithNull();
+    }
 }

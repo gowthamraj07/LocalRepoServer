@@ -33,7 +33,11 @@ public class URLController {
         this.writer = new PrintWriter(System.out);
         this.repository = new DependencyRepository(curdRepository);
         this.fileRepository = new FileRepository();
-        List<String> hostUrls = Arrays.asList(NetworkRepository.GOOGLE_MAVEN_REPOSITORY_URL, NetworkRepository.JCENTER_MAVEN_REPOSITORY_URL, NetworkRepository.MAVEN2_REPOSITORY_URL);
+        List<String> hostUrls = Arrays.asList(
+                NetworkRepository.GOOGLE_MAVEN_REPOSITORY_URL,
+                NetworkRepository.JCENTER_MAVEN_REPOSITORY_URL,
+                NetworkRepository.MAVEN2_REPOSITORY_URL);
+
         this.networkRepository = new NetworkRepository(new NetworkCallback(this.repository, fileRepository), hostUrls);
     }
 
@@ -98,6 +102,13 @@ public class URLController {
     @ResponseBody
     public List<DependencyDomain> listAvailableDependencies() {
         return repository.list();
+    }
+
+    @RequestMapping(path = "/delete")
+    @ResponseBody
+    public String deleteWithNull() {
+        repository.deleteWithNull();
+        return "{\"ok\"}";
     }
 
 }
