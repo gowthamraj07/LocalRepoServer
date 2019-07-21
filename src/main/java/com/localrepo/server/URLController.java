@@ -33,8 +33,7 @@ public class URLController {
         this.writer = new PrintWriter(System.out);
         this.repository = new DependencyRepository(curdRepository);
         this.fileRepository = new FileRepository();
-        List<String> hostUrls = repositories.getRepos();
-        this.networkRepository = new NetworkRepository(new NetworkCallback(this.repository, fileRepository), hostUrls);
+        this.networkRepository = new NetworkRepository(new NetworkCallback(this.repository, fileRepository), repositories);
     }
 
     URLController(PrintWriter writer, DependencyRepository repository, FileRepository fileRepository, NetworkRepository networkRepository) {

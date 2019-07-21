@@ -1,5 +1,6 @@
 package com.localrepo.server.repository;
 
+import com.localrepo.server.domain.Repositories;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -21,17 +22,19 @@ public class NetworkRepositoryTest {
     private static final String FAKE_HTTPS_REPOSITORY_URL_3 = "http://test/";
     private URL source;
     private List<String> hostUrls;
+    private Repositories repositories = new Repositories();
 
     @Before
     public void setUp() throws Exception {
         source = new URL(FAKE_HTTPS_REPOSITORY_URL_1 + REQUESTED_URL_PATH);
         hostUrls = Arrays.asList(FAKE_HTTPS_REPOSITORY_URL_1, FAKE_HTTPS_REPOSITORY_URL_2, FAKE_HTTPS_REPOSITORY_URL_3);
+        repositories.setRepos(hostUrls);
     }
 
     @Test
     public void shouldReturnLastPartIfItHasSlash() {
         NetworkRepository.Callback callback = Mockito.mock(NetworkRepository.Callback.class);
-        NetworkRepository repository = new NetworkRepository(callback, hostUrls);
+        NetworkRepository repository = new NetworkRepository(callback, repositories);
 
         String fileName = repository.getFileName(source);
 
@@ -75,7 +78,7 @@ public class NetworkRepositoryTest {
     private class FailureNetworkRepository extends NetworkRepository {
 
         FailureNetworkRepository(Callback callback) {
-            super(callback, hostUrls);
+            super(callback, repositories);
         }
 
         @Override
@@ -87,7 +90,7 @@ public class NetworkRepositoryTest {
 
     private class SuccessNetworkRepository extends NetworkRepository {
         SuccessNetworkRepository(Callback callback, List<String> hostUrls) {
-            super(callback, hostUrls);
+            super(callback, repositories);
         }
 
         @Override
@@ -101,7 +104,7 @@ public class NetworkRepositoryTest {
         private final SpyRepository spyRepository;
 
         SpyFailureNetworkRepository(Callback callback, List<String> hostUrls, SpyRepository spyRepository) {
-            super(callback, hostUrls);
+            super(callback, repositories);
             this.spyRepository = spyRepository;
         }
 

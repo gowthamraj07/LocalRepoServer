@@ -2,6 +2,7 @@ package com.localrepo.server;
 
 import com.localrepo.server.callback.NetworkCallback;
 import com.localrepo.server.domain.DependencyDomain;
+import com.localrepo.server.domain.Repositories;
 import com.localrepo.server.repository.DependencyCrudRepository;
 import com.localrepo.server.repository.DependencyRepository;
 import com.localrepo.server.repository.FileRepository;
@@ -32,6 +33,7 @@ public class URLControllerTest {
     private DependencyRepository repository;
     private FileRepository fileRepository;
     private NetworkRepository networkRepository;
+    private Repositories repositories = new Repositories();
     public static final DependencyDomain MOCK_DEPENDENCY_DOMAIN = new DependencyDomain();
 
     @Before
@@ -191,7 +193,7 @@ public class URLControllerTest {
         private Callback callback;
 
         SuccessNetworkRepository(Callback callback) {
-            super(callback, Collections.singletonList(NetworkRepository.GOOGLE_MAVEN_REPOSITORY_URL));
+            super(callback, repositories);
             this.callback = callback;
         }
 

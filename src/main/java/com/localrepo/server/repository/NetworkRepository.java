@@ -1,11 +1,11 @@
 package com.localrepo.server.repository;
 
+import com.localrepo.server.domain.Repositories;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.List;
 
 public class NetworkRepository {
 
@@ -15,16 +15,16 @@ public class NetworkRepository {
     public static final String MAVEN2_REPOSITORY_URL = "http://repo1.maven.org/maven2";
 
     private Callback callback;
-    private List<String> hostUrls;
+    private Repositories repositories;
 
-    public NetworkRepository(Callback callback, List<String> hostUrls) {
+    public NetworkRepository(Callback callback, Repositories repositories) {
         this.callback = callback;
-        this.hostUrls = hostUrls;
+        this.repositories = repositories;
     }
 
     public void downloadDependency(String path, String localDirectoryPath) {
         boolean isEligibleForDelete = true;
-        for (String hostUrl : hostUrls) {
+        for (String hostUrl : repositories.getRepos()) {
             try {
                 downloadDependencyFrom(path, localDirectoryPath, hostUrl);
                 System.out.println("File created");
