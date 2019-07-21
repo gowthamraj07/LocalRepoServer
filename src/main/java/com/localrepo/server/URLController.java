@@ -2,6 +2,7 @@ package com.localrepo.server;
 
 import com.localrepo.server.callback.NetworkCallback;
 import com.localrepo.server.domain.DependencyDomain;
+import com.localrepo.server.domain.Repositories;
 import com.localrepo.server.repository.DependencyCrudRepository;
 import com.localrepo.server.repository.DependencyRepository;
 import com.localrepo.server.repository.FileRepository;
@@ -17,7 +18,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Arrays;
 import java.util.List;
 
 @Controller
@@ -29,15 +29,11 @@ public class URLController {
     private NetworkRepository networkRepository;
 
     @Autowired
-    public URLController(DependencyCrudRepository curdRepository) {
+    public URLController(DependencyCrudRepository curdRepository, Repositories repositories) {
         this.writer = new PrintWriter(System.out);
         this.repository = new DependencyRepository(curdRepository);
         this.fileRepository = new FileRepository();
-        List<String> hostUrls = Arrays.asList(
-                NetworkRepository.GOOGLE_MAVEN_REPOSITORY_URL,
-                NetworkRepository.JCENTER_MAVEN_REPOSITORY_URL,
-                NetworkRepository.MAVEN2_REPOSITORY_URL);
-
+        List<String> hostUrls = repositories.getRepos();
         this.networkRepository = new NetworkRepository(new NetworkCallback(this.repository, fileRepository), hostUrls);
     }
 
