@@ -46,3 +46,11 @@ maven {
 ### End points
  * `http://localhost:8082/` will display all the cached jar files list
  * `http://localhost:8082/delete` will delete all the redundant records from database
+
+### How to copy all the jars into a single folder
+Use the following script to copy all the jars to single folder, that is shippable.
+
+```
+mkdir ~/jars
+find $PWD -maxdepth 2 -type f | grep ".jar" | while read line; do cp $line ~/jars/. ; done
+```
