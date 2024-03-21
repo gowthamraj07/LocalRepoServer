@@ -15,18 +15,19 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.util.List;
 
 @Controller
 public class URLController {
 
-    private DependencyRepository repository;
-    private PrintWriter writer;
-    private FileRepository fileRepository;
-    private NetworkRepository networkRepository;
+    public static final byte[] EMPTY_BYTES = new byte[0];
+    private final DependencyRepository repository;
+    private final PrintWriter writer;
+    private final FileRepository fileRepository;
+    private final NetworkRepository networkRepository;
 
     @Autowired
     public URLController(DependencyCrudRepository curdRepository, Repositories repositories) {
@@ -67,7 +68,7 @@ public class URLController {
         File[] files = directoryPath.listFiles();
 
         if(files == null) {
-            return new byte[0];
+            return EMPTY_BYTES;
         }
 
         for (File file : files) {
@@ -80,17 +81,17 @@ public class URLController {
         }
 
         if (inputFile == null) {
-            return new byte[0];
+            return EMPTY_BYTES;
         }
 
-        System.out.println("File to download : "+inputFile.getPath());
+        System.out.println("File to download from cache : "+inputFile.getPath());
         try {
-            return IOUtils.toByteArray(new FileInputStream(inputFile));
+            return IOUtils.toByteArray(Files.newInputStream(inputFile.toPath()));
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        return new byte[0];
+        return EMPTY_BYTES;
     }
 
     @RequestMapping(path = "/list")
