@@ -47,6 +47,10 @@ public class DependencyRepository {
             URI uri = URI.create(path);
             domain.setHost(uri.getScheme() + "://" + uri.getHost() + ":" + uri.getPort());
             domain.setRequestedPath(uri.getPath());
+
+            System.out.println("No domain found for the searching path (" + path +")");
+            System.out.println("So returning DependencyDomain ( " + domain + ")");
+
             return domain;
         }
 

@@ -47,4 +47,13 @@ public class DependencyDomain {
     public void setHost(String host) {
         this.host = host;
     }
+
+    @Override
+    public String toString() {
+        return "DependencyDomain{" +
+                "id=" + id +
+                ", path='" + path + '\'' +
+                ", host='" + host + '\'' +
+                '}';
+    }
 }
