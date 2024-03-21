@@ -42,14 +42,13 @@ public class NetworkRepositoryTest {
     }
 
     @Test
-    @Ignore("need to check")
     public void shouldLogErrorWhenUnableToDownloadFileFromRequestedURL() {
         NetworkRepository.Callback callback = Mockito.mock(NetworkRepository.Callback.class);
         NetworkRepository repository = new FailureNetworkRepository(callback);
 
         repository.downloadDependency(REQUESTED_URL_PATH, "any local directory path");
 
-        Mockito.verify(callback, times(hostUrls.size())).onError(REQUESTED_URL_PATH, "error message");
+        Mockito.verify(callback).onError(REQUESTED_URL_PATH, "Unable to download dependency");
     }
 
     @Test
