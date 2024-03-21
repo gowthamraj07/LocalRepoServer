@@ -27,7 +27,7 @@ public class NetworkRepository {
         for (String hostUrl : repositories.getRepos()) {
             try {
                 downloadDependencyFrom(path, localDirectoryPath, hostUrl);
-                System.out.println("File created");
+                System.out.println("Successfully cached the file ("+path+") from host ("+hostUrl+")...");
                 callback.onSuccess(path, hostUrl);
                 isEligibleForDelete = false;
                 break;
@@ -37,7 +37,7 @@ public class NetworkRepository {
         }
 
         if(isEligibleForDelete) {
-            callback.onError(path, "Unable to download dependency");
+            callback.onError(path, "Unable to cache dependency ("+path+")");
         }
     }
 
