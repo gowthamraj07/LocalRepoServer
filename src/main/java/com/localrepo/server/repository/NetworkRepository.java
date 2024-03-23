@@ -45,7 +45,7 @@ public class NetworkRepository {
         String spec = host + path;
         System.out.println("spec : " + spec);
         URL source = new URL(spec);
-        System.out.println(source.toString());
+        System.out.println(source);
         System.out.println("file to create : " + (localDirectoryPath + "/" + getFileName(source)));
         File file = new File(localDirectoryPath + "/" + getFileName(source));
         if (file.getParentFile() != null && !file.getParentFile().exists()) {
@@ -53,7 +53,15 @@ public class NetworkRepository {
         }
 
         file.createNewFile();
-        FileUtils.copyURLToFile(source, file);
+
+        new Thread(() -> {
+            try {
+                FileUtils.copyURLToFile(source, file, 5000, 5000);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
+        //FileUtils.copyURLToFile(source, file, 5000, 5000);
     }
 
     String getFileName(URL source) {
