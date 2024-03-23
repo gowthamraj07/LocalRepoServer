@@ -48,7 +48,7 @@ public class NetworkRepositoryTest {
 
         repository.downloadDependency(REQUESTED_URL_PATH, "any local directory path");
 
-        Mockito.verify(callback).onError(REQUESTED_URL_PATH, "Unable to download dependency");
+        Mockito.verify(callback).onError(REQUESTED_URL_PATH, "Unable to cache dependency (/test/test.html)");
     }
 
     @Test
