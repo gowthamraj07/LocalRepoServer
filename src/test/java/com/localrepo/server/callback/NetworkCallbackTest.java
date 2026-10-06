@@ -3,9 +3,9 @@ package com.localrepo.server.callback;
 import com.localrepo.server.domain.DependencyDomain;
 import com.localrepo.server.repository.DependencyRepository;
 import com.localrepo.server.repository.FileRepository;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 public class NetworkCallbackTest {
@@ -15,7 +15,7 @@ public class NetworkCallbackTest {
     private static final String ANY_ERROR_MESSAGE = "ANY ERROR MESSAGE";
     private FileRepository fileRepository;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         fileRepository = Mockito.mock(FileRepository.class);
     }
@@ -41,7 +41,7 @@ public class NetworkCallbackTest {
 
         Mockito.verify(repository).findDomainByPath(ANY_PATH);
         Mockito.verify(repository).update(domain);
-        Assert.assertEquals(ANY_HOST, domain.getHost());
+        Assertions.assertEquals(ANY_HOST, domain.getHost());
     }
 
     @Test

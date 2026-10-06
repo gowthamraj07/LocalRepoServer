@@ -7,10 +7,10 @@ import com.localrepo.server.repository.DependencyCrudRepository;
 import com.localrepo.server.repository.DependencyRepository;
 import com.localrepo.server.repository.FileRepository;
 import com.localrepo.server.repository.NetworkRepository;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
@@ -36,7 +36,7 @@ public class URLControllerTest {
     private Repositories repositories = new Repositories();
     public static final DependencyDomain MOCK_DEPENDENCY_DOMAIN = new DependencyDomain();
 
-    @Before
+    @BeforeEach
     public void setUp() {
         File file = new File(PREFIX + DIRECTORY_ID);
         if (!file.exists()) {
@@ -118,7 +118,7 @@ public class URLControllerTest {
 
         controller.getDependency(ANY_PATH);
 
-        Mockito.verifyZeroInteractions(networkRepository);
+        Mockito.verifyNoInteractions(networkRepository);
     }
 
     @Test
@@ -137,7 +137,7 @@ public class URLControllerTest {
 
         List<DependencyDomain> actualResponseDomainList = controller.listAvailableDependencies();
 
-        Assert.assertEquals(requestUrlDomainList, actualResponseDomainList);
+        Assertions.assertEquals(requestUrlDomainList, actualResponseDomainList);
     }
 
     @Test
@@ -151,7 +151,7 @@ public class URLControllerTest {
         Mockito.verify(repository).update(MOCK_DEPENDENCY_DOMAIN);
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() {
         File newFile = new File(PREFIX + DIRECTORY_ID + "/test.jar");
         if (newFile.exists()) {

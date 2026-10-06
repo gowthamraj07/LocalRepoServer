@@ -1,8 +1,8 @@
 package com.localrepo.server.repository;
 
 import com.localrepo.server.domain.DependencyDomain;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.Collections;
@@ -31,8 +31,8 @@ public class DependencyRepositoryTest {
 
         DependencyDomain domainByPath = repository.findDomainByPath(ANY_PATH);
 
-        Assert.assertEquals("/test/sample", domainByPath.getPath());
-        Assert.assertEquals("http://localhost:8080", domainByPath.getHost());
+        Assertions.assertEquals("/test/sample", domainByPath.getPath());
+        Assertions.assertEquals("http://localhost:8080", domainByPath.getHost());
     }
 
     @Test
@@ -46,7 +46,7 @@ public class DependencyRepositoryTest {
 
         DependencyDomain domainByPath = repository.findDomainByPath(ANY_PATH);
 
-        Assert.assertEquals(domain, domainByPath);
+        Assertions.assertEquals(domain, domainByPath);
     }
 
     private DependencyCrudRepository getMock() {

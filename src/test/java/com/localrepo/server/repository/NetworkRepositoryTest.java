@@ -1,9 +1,8 @@
 package com.localrepo.server.repository;
 
 import com.localrepo.server.domain.Repositories;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.io.IOException;
@@ -11,7 +10,7 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 public class NetworkRepositoryTest {
@@ -24,7 +23,7 @@ public class NetworkRepositoryTest {
     private List<String> hostUrls;
     private Repositories repositories = new Repositories();
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         source = new URL(FAKE_HTTPS_REPOSITORY_URL_1 + REQUESTED_URL_PATH);
         hostUrls = Arrays.asList(FAKE_HTTPS_REPOSITORY_URL_1, FAKE_HTTPS_REPOSITORY_URL_2, FAKE_HTTPS_REPOSITORY_URL_3);
