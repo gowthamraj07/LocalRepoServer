@@ -27,4 +27,5 @@
 ### Project output directories ###
 /directory/
 /local_repo/
-derby.log.DS_Store
+derby.log
+.DS_Store
