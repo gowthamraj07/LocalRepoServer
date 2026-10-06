@@ -1,20 +1,27 @@
 package com.localrepo.server.artifact;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.time.Instant;
 import java.util.List;
 
 @RestController
 public class ArtifactController {
 
+    private static final Logger log = LoggerFactory.getLogger(ArtifactController.class);
     private static final String CACHE_PREFIX = "/cache/";
 
     private final ArtifactService service;
@@ -23,27 +30,90 @@ public class ArtifactController {
         this.service = service;
     }
 
-    /** GET and (implicitly) HEAD for any artifact below {@code /cache/}. */
+    /**
+     * GET and (implicitly) HEAD for any artifact below {@code /cache/}. A miss is streamed to the client while it
+     * downloads, so the build sees progress instead of waiting for the whole file.
+     */
     @GetMapping(CACHE_PREFIX + "**")
-    public ResponseEntity<Resource> artifact(HttpServletRequest request) {
+    public ResponseEntity<?> artifact(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String raw = request.getRequestURI().substring(request.getContextPath().length() + CACHE_PREFIX.length());
         ArtifactPath path = ArtifactPath.of(raw);
+        boolean head = "HEAD".equals(request.getMethod());
 
-        return service.resolve(path)
-                .map(artifact -> {
-                    ResponseEntity.BodyBuilder response = ResponseEntity.ok().contentType(ContentTypes.of(path));
-                    ArtifactMeta meta = artifact.meta();
-                    if (meta.etag() != null) {
-                        response.header(HttpHeaders.ETAG, meta.etag());
-                    }
-                    if (meta.lastModified() != null) {
-                        response.header(HttpHeaders.LAST_MODIFIED, meta.lastModified());
-                    } else {
-                        response.lastModified(meta.fetchedAt());
-                    }
-                    return response.<Resource>body(new FileSystemResource(artifact.file()));
-                })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        return switch (service.resolve(path)) {
+            case ArtifactService.Resolution.Cached cached -> cachedResponse(path, cached.artifact());
+            case ArtifactService.Resolution.Missing missing -> ResponseEntity.notFound().build();
+            case ArtifactService.Resolution.Downloading downloading ->
+                    streamingResponse(path, downloading.download(), head, response);
+        };
+    }
+
+    /** Writes a download in progress straight to the servlet response; returns null once it has been written. */
+    private ResponseEntity<?> streamingResponse(ArtifactPath path, Download download, boolean head,
+                                                HttpServletResponse response) throws IOException {
+        return switch (download.awaitHeaders()) {
+            case COMPLETED -> cachedResponse(path, download.awaitResult().orElseThrow());
+            case NOT_FOUND -> ResponseEntity.notFound().build();
+            case FAILED, CONNECTING -> ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();
+            case STREAMING -> {
+                response.setStatus(HttpStatus.OK.value());
+                // If the upstream breaks mid-body the client must see the transfer fail, not wait or get a short
+                // file: closing the connection makes the missing bytes against Content-Length an error.
+                response.setHeader(HttpHeaders.CONNECTION, "close");
+                response.setContentType(ContentTypes.of(path).toString());
+                if (download.contentLength() >= 0) {
+                    response.setContentLengthLong(download.contentLength());
+                }
+                Origin origin = download.origin();
+                if (origin.etag() != null) {
+                    response.setHeader(HttpHeaders.ETAG, origin.etag());
+                }
+                if (origin.lastModified() != null) {
+                    response.setHeader(HttpHeaders.LAST_MODIFIED, origin.lastModified());
+                }
+                if (!head) {
+                    copy(download, response);
+                }
+                yield null;
+            }
+        };
+    }
+
+    private static void copy(Download download, HttpServletResponse response) throws IOException {
+        try (InputStream in = download.openStream()) {
+            OutputStream out = response.getOutputStream();
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = in.read(buffer)) >= 0) {
+                try {
+                    out.write(buffer, 0, read);
+                    out.flush();
+                } catch (IOException clientGone) {
+                    // The download carries on without us and still fills the cache.
+                    log.debug("Client stopped reading {}", download.path().value());
+                    return;
+                }
+            }
+        }
+    }
+
+    private static ResponseEntity<?> cachedResponse(ArtifactPath path, CachedArtifact artifact) {
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok().contentType(ContentTypes.of(path));
+        ArtifactMeta meta = artifact.meta();
+        withValidators(response, meta.etag(), meta.lastModified());
+        if (meta.lastModified() == null) {
+            response.lastModified(meta.fetchedAt());
+        }
+        return response.body(new FileSystemResource(artifact.file()));
+    }
+
+    private static void withValidators(ResponseEntity.BodyBuilder response, String etag, String lastModified) {
+        if (etag != null) {
+            response.header(HttpHeaders.ETAG, etag);
+        }
+        if (lastModified != null) {
+            response.header(HttpHeaders.LAST_MODIFIED, lastModified);
+        }
     }
 
     @GetMapping("/list")

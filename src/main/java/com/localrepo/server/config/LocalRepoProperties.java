@@ -11,13 +11,19 @@ import java.util.List;
  * @param cacheDir         root of the on-disk cache
  * @param negativeCacheTtl how long a path that every upstream reported missing is answered with 404 without asking
  *                         again; zero disables it
+ * @param connectTimeout   how long to wait for an upstream connection
+ * @param readIdleTimeout  how long an upstream may go without sending anything, for headers or body, before the
+ *                         fetch is abandoned. There is no limit on the total download time.
  */
 @ConfigurationProperties("localrepo")
-public record LocalRepoProperties(List<String> upstreams, Path cacheDir, Duration negativeCacheTtl) {
+public record LocalRepoProperties(List<String> upstreams, Path cacheDir, Duration negativeCacheTtl,
+                                  Duration connectTimeout, Duration readIdleTimeout) {
 
     public LocalRepoProperties {
         upstreams = upstreams == null ? List.of() : List.copyOf(upstreams);
         cacheDir = cacheDir == null ? Path.of(System.getProperty("user.home"), ".localrepo", "cache") : cacheDir;
         negativeCacheTtl = negativeCacheTtl == null ? Duration.ofMinutes(5) : negativeCacheTtl;
+        connectTimeout = connectTimeout == null ? Duration.ofSeconds(10) : connectTimeout;
+        readIdleTimeout = readIdleTimeout == null ? Duration.ofSeconds(60) : readIdleTimeout;
     }
 }

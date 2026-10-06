@@ -2,6 +2,8 @@ package com.localrepo.server.config;
 
 import com.localrepo.server.artifact.ArtifactService;
 import com.localrepo.server.artifact.ArtifactStore;
+import com.localrepo.server.artifact.DownloadCoordinator;
+import com.localrepo.server.artifact.DownloadTracker;
 import com.localrepo.server.artifact.NegativeCache;
 import com.localrepo.server.artifact.UpstreamClient;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -10,7 +12,6 @@ import org.springframework.context.annotation.Configuration;
 
 import java.net.http.HttpClient;
 import java.time.Clock;
-import java.time.Duration;
 
 @Configuration
 @EnableConfigurationProperties(LocalRepoProperties.class)
@@ -30,11 +31,21 @@ public class LocalRepoConfiguration {
     }
 
     @Bean
-    UpstreamClient upstreamClient() {
+    UpstreamClient upstreamClient(LocalRepoProperties properties) {
         return new UpstreamClient(HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
+                .connectTimeout(properties.connectTimeout())
                 .followRedirects(HttpClient.Redirect.NORMAL)
-                .build());
+                .build(), properties.readIdleTimeout());
+    }
+
+    @Bean
+    DownloadTracker downloadTracker(Clock clock) {
+        return new DownloadTracker(clock);
+    }
+
+    @Bean
+    DownloadCoordinator downloadCoordinator(Clock clock, LocalRepoProperties properties, DownloadTracker tracker) {
+        return new DownloadCoordinator(clock, properties.readIdleTimeout(), tracker);
     }
 
     @Bean
@@ -44,7 +55,7 @@ public class LocalRepoConfiguration {
 
     @Bean
     ArtifactService artifactService(ArtifactStore store, UpstreamClient upstreamClient, NegativeCache negativeCache,
-                                    LocalRepoProperties properties) {
-        return new ArtifactService(store, upstreamClient, properties.upstreams(), negativeCache);
+                                    DownloadCoordinator downloads, LocalRepoProperties properties) {
+        return new ArtifactService(store, upstreamClient, properties.upstreams(), negativeCache, downloads);
     }
 }

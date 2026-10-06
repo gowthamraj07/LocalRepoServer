@@ -12,3 +12,5 @@ localrepo:
   upstreams: ${repos:https://repo.maven.apache.org/maven2,https://dl.google.com/dl/android/maven2}
   cache-dir: ${user.home}/.localrepo/cache
   negative-cache-ttl: 5m
+  connect-timeout: 10s
+  read-idle-timeout: 60s
