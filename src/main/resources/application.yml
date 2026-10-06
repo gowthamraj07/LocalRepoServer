@@ -6,13 +6,9 @@ spring:
   threads:
     virtual:
       enabled: true
-  datasource:
-    url: jdbc:derby:directory;create=true
-  jpa:
-    show-sql: false
-    hibernate:
-      ddl-auto: update
 
 localrepo:
   # `--repos=a,b` on the command line still works and overrides the defaults.
   upstreams: ${repos:https://repo.maven.apache.org/maven2,https://dl.google.com/dl/android/maven2}
+  cache-dir: ${user.home}/.localrepo/cache
+  negative-cache-ttl: 5m

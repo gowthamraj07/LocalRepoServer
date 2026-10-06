@@ -1,6 +1,5 @@
 package com.localrepo.server.config;
 
-import com.localrepo.server.domain.Repositories;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,11 +15,11 @@ class LocalRepoPropertiesTest {
     @SpringBootTest(args = "--repos=https://a.example/maven2,https://b.example/m2")
     class LegacyReposArgument {
         @Autowired
-        Repositories repositories;
+        LocalRepoProperties properties;
 
         @Test
         void mapsCommaSeparatedReposArgumentToUpstreams() {
-            assertEquals(List.of("https://a.example/maven2", "https://b.example/m2"), repositories.getRepos());
+            assertEquals(List.of("https://a.example/maven2", "https://b.example/m2"), properties.upstreams());
         }
     }
 
@@ -28,11 +27,11 @@ class LocalRepoPropertiesTest {
     @SpringBootTest(properties = "localrepo.upstreams=https://c.example/maven2")
     class UpstreamsProperty {
         @Autowired
-        Repositories repositories;
+        LocalRepoProperties properties;
 
         @Test
         void readsUpstreamsFromConfiguration() {
-            assertEquals(List.of("https://c.example/maven2"), repositories.getRepos());
+            assertEquals(List.of("https://c.example/maven2"), properties.upstreams());
         }
     }
 

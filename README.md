@@ -10,6 +10,8 @@ Run the following command in Terminal to start the Server.
 java -jar server-1.0.0.jar --repos=<repo1>,<repo2>,...
 ```
 
+Without `--repos` the server uses Maven Central and Google Maven.
+
 Example (to use Maven Crental repository):
 ```
 java -jar server-1.0.0.jar --repos=https://repo1.maven.org/maven2
@@ -43,20 +45,17 @@ maven {
 -----
 
 ### How it works
- * server.jar acts as an intermediate proxy server, that caches all the responses from actual repository, and save it in folder `local_repo`
- * And it creates records for every jar file in derby database
+ * The server is a caching proxy. A request for `/cache/<path>` is served from `~/.localrepo/cache/default/<path>` when present, otherwise it is fetched from the upstreams in order and stored there in the standard Maven layout
+ * Files are only stored once completely downloaded; a `<file>.meta.json` sidecar records where and when each came from
+ * A path that no upstream has returns `404`, and is remembered for 5 minutes (`--localrepo.negative-cache-ttl`)
+ * Change the cache location with `--localrepo.cache-dir=/some/dir`
 -----
 
 ### End points
- * `http://localhost:8082/` will display all the cached jar files list
- * `http://localhost:8082/delete` will delete all the redundant records from database
+ * `http://localhost:8082/` will display all the cached files
+ * `http://localhost:8082/list` returns the cached files as JSON
 -----
 
-### How to copy all the jars into a single folder
-Use the following script to copy all the jars to single folder, that is shippable.
-
-```
-mkdir ~/jars
-find $PWD -maxdepth 2 -type f | grep ".jar" | while read line; do cp $line ~/jars/. ; done
-```
+### How to ship the cache
+The cache directory is a plain Maven repository; copy `~/.localrepo/cache` to another machine to reuse it.
 -----
