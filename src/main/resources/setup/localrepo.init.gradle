@@ -1,0 +1,72 @@
+// LocalRepoServer: sends this machine's Gradle builds through the local caching proxy at @BASE_URL@.
+// Installed by LocalRepoServer; delete this file, or use its uninstall, to stop.
+//
+// The proxy is put in front of every repository list a build declares, and of plugin resolution. The build's own
+// repositories stay behind it, so anything the proxy cannot serve still resolves as before. When the server is not
+// running nothing is changed.
+//
+// Opt out for one build with -Plocalrepo.disabled=true or LOCALREPO_DISABLED=1. Point at another server with
+// LOCALREPO_URL=http://host:port.
+
+def localRepoBase = (System.getenv('LOCALREPO_URL') ?: '@BASE_URL@').replaceAll('/+$', '')
+def localRepoName = 'LocalRepoServer'
+
+def localRepoDisabled = System.getenv('LOCALREPO_DISABLED') in ['1', 'true'] ||
+        gradle.startParameter.projectProperties['localrepo.disabled'] == 'true' ||
+        System.getProperty('localrepo.disabled') == 'true'
+
+if (localRepoDisabled) {
+    logger.info("LocalRepoServer is disabled for this build")
+    return
+}
+
+def localRepoUp = false
+try {
+    def connection = new URL(localRepoBase + '/actuator/health').openConnection()
+    connection.connectTimeout = 300
+    connection.readTimeout = 2000
+    localRepoUp = connection.responseCode == 200
+} catch (Exception ignored) {
+}
+if (!localRepoUp) {
+    logger.lifecycle("LocalRepoServer is not running at ${localRepoBase}; using the build's own repositories")
+    return
+}
+
+def putProxyFirst = { repositories ->
+    if (repositories.findByName(localRepoName) != null) {
+        return
+    }
+    def proxy = repositories.maven {
+        name = localRepoName
+        url = localRepoBase + '/cache'
+        allowInsecureProtocol = true
+    }
+    repositories.remove(proxy)
+    repositories.addFirst(proxy)
+}
+
+// Only touch lists the build actually uses: adding a project repository where the build declares none would hide
+// the repositories declared in settings.
+def proxyDeclaredRepositories = { repositories ->
+    if (repositories.any { it.name != localRepoName }) {
+        putProxyFirst(repositories)
+    }
+    repositories.whenObjectAdded { repository ->
+        if (repository.name != localRepoName) {
+            putProxyFirst(repositories)
+        }
+    }
+}
+
+beforeSettings { settings ->
+    // Unconditional: with no declared plugin repositories Gradle would use the Plugin Portal, which the proxy covers.
+    putProxyFirst(settings.pluginManagement.repositories)
+    proxyDeclaredRepositories(settings.dependencyResolutionManagement.repositories)
+    proxyDeclaredRepositories(settings.buildscript.repositories)
+}
+
+allprojects { project ->
+    proxyDeclaredRepositories(project.buildscript.repositories)
+    proxyDeclaredRepositories(project.repositories)
+}
