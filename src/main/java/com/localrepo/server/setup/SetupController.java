@@ -2,6 +2,8 @@ package com.localrepo.server.setup;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -22,9 +24,11 @@ public class SetupController {
     public static final String ACTION_HEADER = "X-LocalRepo-Action";
 
     private final GradleSetup gradle;
+    private final MavenSetup maven;
 
-    public SetupController(GradleSetup gradle) {
+    public SetupController(GradleSetup gradle, MavenSetup maven) {
         this.gradle = gradle;
+        this.maven = maven;
     }
 
     @GetMapping(value = "/setup/gradle/" + GradleSetup.FILE_NAME, produces = MediaType.TEXT_PLAIN_VALUE)
@@ -49,6 +53,35 @@ public class SetupController {
             throws IOException {
         requireAction(action);
         return gradle.uninstall(baseUrl());
+    }
+
+    @GetMapping(value = "/setup/maven/settings.xml", produces = MediaType.APPLICATION_XML_VALUE)
+    public String mavenSettings() {
+        return maven.render(baseUrl());
+    }
+
+    @GetMapping("/setup/maven")
+    public MavenSetup.Status mavenStatus() throws IOException {
+        return maven.status(baseUrl());
+    }
+
+    @PostMapping("/setup/maven/install")
+    public MavenSetup.Status installMaven(@RequestHeader(value = ACTION_HEADER, required = false) String action)
+            throws IOException {
+        requireAction(action);
+        return maven.install(baseUrl());
+    }
+
+    @PostMapping("/setup/maven/uninstall")
+    public MavenSetup.Status uninstallMaven(@RequestHeader(value = ACTION_HEADER, required = false) String action)
+            throws IOException {
+        requireAction(action);
+        return maven.uninstall(baseUrl());
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    ResponseEntity<String> cannotEdit(IllegalArgumentException e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
     }
 
     private static void requireAction(String action) {

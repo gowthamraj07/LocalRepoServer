@@ -13,6 +13,7 @@ localrepo:
   connect-timeout: 10s
   read-idle-timeout: 60s
   gradle-user-home: ${GRADLE_USER_HOME:${user.home}/.gradle}
+  maven-settings: ${user.home}/.m2/settings.xml
   # Tried in this order by /cache/** (the group), filtered by includes/excludes. `--repos=a,b` replaces the list.
   # Private repositories take credentials from environment variables, e.g.
   #   credentials: { token-env: GITHUB_TOKEN }  or  { username-env: REPO_USER, password-env: REPO_PASSWORD }
