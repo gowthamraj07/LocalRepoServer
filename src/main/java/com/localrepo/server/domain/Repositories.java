@@ -1,11 +1,8 @@
 package com.localrepo.server.domain;
 
-import org.springframework.stereotype.Component;
-
 import java.util.LinkedList;
 import java.util.List;
 
-@Component
 public class Repositories {
     private List<String> repos = new LinkedList<>();
 

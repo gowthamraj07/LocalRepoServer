@@ -1,0 +1,18 @@
+server:
+  port: 8082
+  address: 127.0.0.1
+
+spring:
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: jdbc:derby:directory;create=true
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: update
+
+localrepo:
+  # `--repos=a,b` on the command line still works and overrides the defaults.
+  upstreams: ${repos:https://repo.maven.apache.org/maven2,https://dl.google.com/dl/android/maven2}
