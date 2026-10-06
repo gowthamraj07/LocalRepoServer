@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "code-review-graph update --skip-flows --repo /Volumes/MacBookPro_Extension/IdeaProjects/LocalRepoServer >/dev/null 2>&1 || true"
+          }
+        ],
+        "timeout": 10000
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "code-review-graph status --repo /Volumes/MacBookPro_Extension/IdeaProjects/LocalRepoServer"
+          }
+        ],
+        "timeout": 5000
+      }
+    ]
+  }
+}
