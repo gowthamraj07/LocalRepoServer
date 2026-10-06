@@ -111,6 +111,36 @@ class ArtifactStoreTest {
                 store.list().stream().map(a -> a.path().value()).sorted().toList());
     }
 
+    @Test
+    void exposesAnInProgressWriteOnlyThroughItsPartFile() throws IOException {
+        try (ArtifactStore.PendingWrite write = store.begin(POM)) {
+            write.write("<proj".getBytes(StandardCharsets.UTF_8), 0, 5);
+
+            assertEquals("<proj", Files.readString(write.partFile()));
+            assertEquals(5, write.size());
+            assertTrue(store.find(POM).isEmpty());
+
+            write.write("ect/>".getBytes(StandardCharsets.UTF_8), 0, 5);
+            CachedArtifact committed = write.commit(ORIGIN);
+
+            assertEquals("<project/>", Files.readString(committed.file()));
+            assertEquals(store.find(POM).orElseThrow().meta(), committed.meta());
+            assertFalse(Files.exists(write.partFile()));
+        }
+    }
+
+    @Test
+    void closingAnUncommittedWriteDiscardsIt() throws IOException {
+        Path part;
+        try (ArtifactStore.PendingWrite write = store.begin(POM)) {
+            write.write(new byte[]{1, 2, 3}, 0, 3);
+            part = write.partFile();
+        }
+
+        assertFalse(Files.exists(part));
+        assertTrue(store.find(POM).isEmpty());
+    }
+
     private static InputStream bytes(String content) {
         return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
     }

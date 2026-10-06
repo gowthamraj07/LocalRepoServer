@@ -7,15 +7,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.UncheckedIOException;
-import java.nio.channels.Channels;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
-import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
@@ -53,30 +51,84 @@ public class ArtifactStore {
     }
 
     public CachedArtifact save(ArtifactPath path, InputStream content, Origin origin) throws IOException {
+        try (PendingWrite write = begin(path)) {
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = content.read(buffer)) >= 0) {
+                write.write(buffer, 0, read);
+            }
+            return write.commit(origin);
+        }
+    }
+
+    /** Starts writing {@code path}. Nothing is visible through {@link #find} until {@link PendingWrite#commit}. */
+    public PendingWrite begin(ArtifactPath path) throws IOException {
         Path file = fileFor(path);
         Files.createDirectories(file.getParent());
         Path part = Files.createTempFile(file.getParent(), file.getFileName().toString() + ".", ArtifactPath.PART_SUFFIX);
-        try {
-            MessageDigest sha256 = sha256();
-            long size;
-            try (InputStream in = new DigestInputStream(content, sha256);
-                 FileChannel channel = FileChannel.open(part, StandardOpenOption.WRITE);
-                 OutputStream out = Channels.newOutputStream(channel)) {
-                size = in.transferTo(out);
-                out.flush();
-                channel.force(true);
+        return new PendingWrite(path, file, part);
+    }
+
+    /**
+     * A download in progress. Bytes passed to {@link #write} reach the part file immediately, so other readers can
+     * follow it. Closing without committing deletes the part file.
+     */
+    public final class PendingWrite implements AutoCloseable {
+
+        private final ArtifactPath path;
+        private final Path file;
+        private final Path part;
+        private final FileChannel channel;
+        private final MessageDigest sha256 = sha256();
+        private long size;
+        private boolean committed;
+
+        private PendingWrite(ArtifactPath path, Path file, Path part) throws IOException {
+            this.path = path;
+            this.file = file;
+            this.part = part;
+            this.channel = FileChannel.open(part, StandardOpenOption.WRITE);
+        }
+
+        public Path partFile() {
+            return part;
+        }
+
+        public long size() {
+            return size;
+        }
+
+        public void write(byte[] bytes, int offset, int length) throws IOException {
+            ByteBuffer buffer = ByteBuffer.wrap(bytes, offset, length);
+            while (buffer.hasRemaining()) {
+                channel.write(buffer);
             }
+            sha256.update(bytes, offset, length);
+            size += length;
+        }
+
+        /** Makes the artifact visible under its final name. */
+        public CachedArtifact commit(Origin origin) throws IOException {
+            channel.force(true);
+            channel.close();
             ArtifactMeta meta = new ArtifactMeta(origin.url(), origin.etag(), origin.lastModified(), clock.instant(),
                     size, HexFormat.of().formatHex(sha256.digest()));
             json.writeValue(metaFileFor(file).toFile(), meta);
             Files.move(part, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            committed = true;
             return new CachedArtifact(path, file, meta);
-        } catch (IOException | RuntimeException e) {
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (committed) {
+                return;
+            }
+            channel.close();
             Files.deleteIfExists(part);
             if (!Files.exists(file)) {
                 Files.deleteIfExists(metaFileFor(file));
             }
-            throw e;
         }
     }
 
