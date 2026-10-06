@@ -49,6 +49,20 @@ maven {
 ```
 -----
 
+### How to send every Maven build on this machine through the server
+```
+curl -X POST -H 'X-LocalRepo-Action: true' http://localhost:8082/setup/maven/install
+```
+This adds a `mirrorOf *` mirror to `~/.m2/settings.xml` (creating it if needed), first in the list so it wins over
+wildcard mirrors; mirrors you declared for a specific repository id still take precedence. The rest of the file is left
+untouched and a backup is written next to it before every change.
+
+ * Maven has no fallback: while the mirror is installed the server must be running. Uninstall with
+   `curl -X POST -H 'X-LocalRepo-Action: true' http://localhost:8082/setup/maven/uninstall`, which restores the file
+ * To try it without touching your settings: `curl -o localrepo-settings.xml http://localhost:8082/setup/maven/settings.xml`
+   and build with `mvn -s localrepo-settings.xml ...`
+-----
+
 ### How to initialize the local repository
  * Close all the IDEs (Eclipse/STS/IntelliJ/Android Studio)
  * delete the `~/.gradle/caches` folder
