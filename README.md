@@ -28,11 +28,23 @@ java -jar server-1.0.0.jar --repos=https://repo1.maven.org/maven2,https://dl.goo
 ```
 -----
 
-### How to configure the Gradle project to point to local repository server
-Use the following code inside repository block of build.gradle file
+### How to send every Gradle build on this machine through the server
+With the server running, install its Gradle init script once:
+```
+curl -X POST -H 'X-LocalRepo-Action: true' http://localhost:8082/setup/gradle/install
+```
+It is written to `~/.gradle/init.d/localrepo.init.gradle` (or `$GRADLE_USER_HOME/init.d`). From then on every build,
+plugins included, asks the server first and keeps its own repositories behind it. No project needs editing.
+
+ * When the server is not running, builds use their own repositories as if nothing was installed
+ * Skip the server for one build: `./gradlew build -Plocalrepo.disabled=true` (or `LOCALREPO_DISABLED=1`)
+ * Check: `curl http://localhost:8082/setup/gradle`; remove: `curl -X POST -H 'X-LocalRepo-Action: true' http://localhost:8082/setup/gradle/uninstall`
+
+To configure a single project by hand instead, add the server in front of its repositories:
 ```
 maven {
     url "http://localhost:8082/cache"
+    allowInsecureProtocol = true
 }
 ```
 -----
