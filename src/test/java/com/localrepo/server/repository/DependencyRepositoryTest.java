@@ -49,6 +49,24 @@ public class DependencyRepositoryTest {
         Assertions.assertEquals(domain, domainByPath);
     }
 
+    @Test
+    public void shouldLetTheDatabaseGenerateTheIdForANewPath() {
+        DependencyCrudRepository crudRepository = getMock();
+        Mockito.when(crudRepository.findByPath(ANY_PATH)).thenReturn(Collections.emptyList());
+        Mockito.when(crudRepository.save(Mockito.any(DependencyDomain.class))).thenAnswer(invocation -> {
+            DependencyDomain saved = invocation.getArgument(0);
+            Assertions.assertNull(saved.getId());
+            saved.setId(7L);
+            return saved;
+        });
+        DependencyDomain domain = new DependencyDomain();
+        domain.setRequestedPath(ANY_PATH);
+
+        String id = new DependencyRepository(crudRepository).getId(domain);
+
+        Assertions.assertEquals("7", id);
+    }
+
     private DependencyCrudRepository getMock() {
         return Mockito.mock(DependencyCrudRepository.class);
     }

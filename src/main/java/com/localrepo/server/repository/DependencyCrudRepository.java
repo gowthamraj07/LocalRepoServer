@@ -16,9 +16,6 @@ public interface DependencyCrudRepository extends CrudRepository<DependencyDomai
 
     List<DependencyDomain> findByPath(String path);
 
-    @Query("SELECT coalesce(max(ch.id), 0) FROM DependencyDomain ch")
-    Long getMaxId();
-
     @Transactional
   	@Modifying
   	@Query("DELETE FROM DependencyDomain ch where ch.host IS NULL")

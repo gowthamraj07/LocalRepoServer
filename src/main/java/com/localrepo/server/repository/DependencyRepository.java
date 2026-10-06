@@ -29,10 +29,7 @@ public class DependencyRepository {
             }
         }
 
-        long nextId = crudRepository.getMaxId() + 1;
-        domain.setId(nextId);
-        crudRepository.save(domain);
-        return "" + nextId;
+        return crudRepository.save(domain).getId().toString();
     }
 
     public List<DependencyDomain> list() {
