@@ -8,9 +8,24 @@ spring:
       enabled: true
 
 localrepo:
-  # `--repos=a,b` on the command line still works and overrides the defaults.
-  upstreams: ${repos:https://repo.maven.apache.org/maven2,https://dl.google.com/dl/android/maven2}
   cache-dir: ${user.home}/.localrepo/cache
   negative-cache-ttl: 5m
   connect-timeout: 10s
   read-idle-timeout: 60s
+  # Tried in this order by /cache/** (the group), filtered by includes/excludes. `--repos=a,b` replaces the list.
+  # Private repositories take credentials from environment variables, e.g.
+  #   credentials: { token-env: GITHUB_TOKEN }  or  { username-env: REPO_USER, password-env: REPO_PASSWORD }
+  upstreams:
+    - name: google
+      url: https://dl.google.com/dl/android/maven2
+      includes: [ "androidx/**", "com/android/**", "com/google/**" ]
+    - name: central
+      url: https://repo.maven.apache.org/maven2
+    - name: gradle-plugins
+      url: https://plugins.gradle.org/m2
+    - name: jetbrains-compose
+      url: https://packages.jetbrains.team/maven/p/cmp/dev
+      includes: [ "org/jetbrains/compose/**", "org/jetbrains/androidx/**", "org/jetbrains/skiko/**" ]
+    - name: jitpack
+      url: https://jitpack.io
+      includes: [ "com/github/**" ]

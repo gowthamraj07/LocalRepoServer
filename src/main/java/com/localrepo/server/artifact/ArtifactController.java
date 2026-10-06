@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
@@ -22,7 +23,6 @@ import java.util.List;
 public class ArtifactController {
 
     private static final Logger log = LoggerFactory.getLogger(ArtifactController.class);
-    private static final String CACHE_PREFIX = "/cache/";
 
     private final ArtifactService service;
 
@@ -31,21 +31,38 @@ public class ArtifactController {
     }
 
     /**
-     * GET and (implicitly) HEAD for any artifact below {@code /cache/}. A miss is streamed to the client while it
-     * downloads, so the build sees progress instead of waiting for the whole file.
+     * GET and (implicitly) HEAD for any artifact in the group. A miss is streamed to the client while it downloads, so
+     * the build sees progress instead of waiting for the whole file. {@code /cache/} is the original URL and stays.
      */
-    @GetMapping(CACHE_PREFIX + "**")
-    public ResponseEntity<?> artifact(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        String raw = request.getRequestURI().substring(request.getContextPath().length() + CACHE_PREFIX.length());
-        ArtifactPath path = ArtifactPath.of(raw);
-        boolean head = "HEAD".equals(request.getMethod());
+    @GetMapping({"/cache/**", "/group/**"})
+    public ResponseEntity<?> fromGroup(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        String uri = pathWithinApplication(request);
+        ArtifactPath path = ArtifactPath.of(uri.substring(uri.indexOf('/', 1) + 1));
+        return respond(path, service.resolve(path), request, response);
+    }
 
-        return switch (service.resolve(path)) {
+    /** Like {@link #fromGroup} but asks only the named repository. */
+    @GetMapping("/repo/{name}/**")
+    public ResponseEntity<?> fromRepository(@PathVariable String name, HttpServletRequest request,
+                                            HttpServletResponse response) throws IOException {
+        String prefix = "/repo/" + name + "/";
+        ArtifactPath path = ArtifactPath.of(pathWithinApplication(request).substring(prefix.length()));
+        return respond(path, service.resolve(name, path), request, response);
+    }
+
+    private ResponseEntity<?> respond(ArtifactPath path, ArtifactService.Resolution resolution,
+                                      HttpServletRequest request, HttpServletResponse response) throws IOException {
+        boolean head = "HEAD".equals(request.getMethod());
+        return switch (resolution) {
             case ArtifactService.Resolution.Cached cached -> cachedResponse(path, cached.artifact());
             case ArtifactService.Resolution.Missing missing -> ResponseEntity.notFound().build();
             case ArtifactService.Resolution.Downloading downloading ->
                     streamingResponse(path, downloading.download(), head, response);
         };
+    }
+
+    private static String pathWithinApplication(HttpServletRequest request) {
+        return request.getRequestURI().substring(request.getContextPath().length());
     }
 
     /** Writes a download in progress straight to the servlet response; returns null once it has been written. */
@@ -118,9 +135,9 @@ public class ArtifactController {
 
     @GetMapping("/list")
     public List<ArtifactSummary> list() {
-        return service.list().stream()
-                .map(a -> new ArtifactSummary(a.path().value(), a.meta().upstreamUrl(), a.meta().size(),
-                        a.meta().fetchedAt()))
+        return service.list().entrySet().stream()
+                .flatMap(entry -> entry.getValue().stream().map(a -> new ArtifactSummary(entry.getKey().name(),
+                        a.path().value(), a.meta().upstreamUrl(), a.meta().size(), a.meta().fetchedAt())))
                 .toList();
     }
 
@@ -129,6 +146,6 @@ public class ArtifactController {
         return ResponseEntity.badRequest().body(e.getMessage());
     }
 
-    public record ArtifactSummary(String path, String upstreamUrl, long size, Instant fetchedAt) {
+    public record ArtifactSummary(String repository, String path, String upstreamUrl, long size, Instant fetchedAt) {
     }
 }

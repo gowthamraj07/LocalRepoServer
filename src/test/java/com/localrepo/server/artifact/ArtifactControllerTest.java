@@ -94,8 +94,10 @@ class ArtifactControllerTest {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
-        registry.add("localrepo.upstreams", () -> upstream.baseUrl() + "/maven2,http://127.0.0.1:"
-                + truncatingUpstream.getLocalPort() + "/maven2");
+        registry.add("localrepo.upstreams[0].name", () -> "mock");
+        registry.add("localrepo.upstreams[0].url", () -> upstream.baseUrl() + "/maven2");
+        registry.add("localrepo.upstreams[1].name", () -> "truncating");
+        registry.add("localrepo.upstreams[1].url", () -> "http://127.0.0.1:" + truncatingUpstream.getLocalPort() + "/maven2");
         registry.add("localrepo.cache-dir", cacheDir::toString);
         registry.add("localrepo.negative-cache-ttl", () -> "0s");
     }
@@ -208,7 +210,7 @@ class ArtifactControllerTest {
             long firstByteMillis = (System.nanoTime() - start) / 1_000_000;
 
             assertTrue(firstByteMillis < 1500, "first byte took " + firstByteMillis + "ms");
-            assertFalse(Files.exists(cacheDir.resolve("default/big/big/1/big-1.aar")), "already complete");
+            assertFalse(Files.exists(cacheDir.resolve("mock/big/big/1/big-1.aar")), "already complete");
 
             byte[] rest = body.readAllBytes();
             assertEquals(BIG_BODY.length - 1, rest.length);
@@ -237,7 +239,7 @@ class ArtifactControllerTest {
             body.read();
         }
 
-        Path cached = cacheDir.resolve("default/big/big/1/big-1.aar");
+        Path cached = cacheDir.resolve("mock/big/big/1/big-1.aar");
         for (int i = 0; i < 100 && !Files.exists(cached); i++) {
             Thread.sleep(100);
         }
@@ -254,7 +256,54 @@ class ArtifactControllerTest {
         } catch (IOException expected) {
             // the connection was aborted mid-body
         }
-        assertFalse(Files.exists(cacheDir.resolve("default/junit/junit/4.13.2/junit-4.13.2.jar")));
+        assertFalse(Files.exists(cacheDir.resolve("mock/junit/junit/4.13.2/junit-4.13.2.jar")));
+    }
+
+    @Test
+    void servesTheGroupUnderGroupToo() throws Exception {
+        HttpResponse<String> response = http.send(HttpRequest.newBuilder(URI.create(base() + "/group/junit/junit/4.13.2/junit-4.13.2.pom")).build(),
+                HttpResponse.BodyHandlers.ofString());
+
+        assertEquals(200, response.statusCode());
+        assertEquals("<project/>", response.body());
+    }
+
+    @Test
+    void servesFromOneNamedRepository() throws Exception {
+        HttpResponse<String> response = http.send(HttpRequest.newBuilder(URI.create(base() + "/repo/mock/junit/junit/4.13.2/junit-4.13.2.pom")).build(),
+                HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> wrongRepository = http.send(HttpRequest.newBuilder(URI.create(base() + "/repo/truncating/junit/junit/4.13.2/junit-4.13.2.pom")).build(),
+                HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> unknown = http.send(HttpRequest.newBuilder(URI.create(base() + "/repo/nope/junit/junit/4.13.2/junit-4.13.2.pom")).build(),
+                HttpResponse.BodyHandlers.ofString());
+
+        assertEquals(200, response.statusCode());
+        assertEquals(404, wrongRepository.statusCode());
+        assertEquals(404, unknown.statusCode());
+    }
+
+    @Test
+    void passesChecksumsAndGradleModuleMetadataThrough() throws Exception {
+        upstream.stubFor(get(POM + ".sha1").willReturn(ok("da39a3ee5e6b4b0d3255bfef95601890afd80709")));
+        upstream.stubFor(get("/maven2/junit/junit/4.13.2/junit-4.13.2.module").willReturn(ok("{}")));
+
+        HttpResponse<byte[]> sha1 = fetch("junit/junit/4.13.2/junit-4.13.2.pom.sha1");
+        HttpResponse<byte[]> module = fetch("junit/junit/4.13.2/junit-4.13.2.module");
+
+        assertEquals("text/plain", header(sha1, "Content-Type"));
+        assertEquals("da39a3ee5e6b4b0d3255bfef95601890afd80709", new String(sha1.body(), StandardCharsets.US_ASCII));
+        assertEquals("application/json", header(module, "Content-Type"));
+    }
+
+    @Test
+    void listsCachedArtifactsWithTheirRepository() throws Exception {
+        fetch("junit/junit/4.13.2/junit-4.13.2.pom");
+
+        HttpResponse<String> list = http.send(HttpRequest.newBuilder(URI.create(base() + "/list")).build(),
+                HttpResponse.BodyHandlers.ofString());
+
+        assertTrue(list.body().contains("\"repository\":\"mock\""), list.body());
+        assertTrue(list.body().contains("\"path\":\"junit/junit/4.13.2/junit-4.13.2.pom\""), list.body());
     }
 
     @Test
@@ -267,7 +316,7 @@ class ArtifactControllerTest {
         try (InputStream body = response.body()) {
             assertThrows(IOException.class, body::readAllBytes);
         }
-        assertFalse(Files.exists(cacheDir.resolve("default/cut/cut/1/cut-1.jar")));
+        assertFalse(Files.exists(cacheDir.resolve("truncating/cut/cut/1/cut-1.jar")));
     }
 
     private HttpResponse<byte[]> fetch(String path) throws Exception {
@@ -275,7 +324,11 @@ class ArtifactControllerTest {
     }
 
     private HttpRequest.Builder request(String path) {
-        return HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/cache/" + path));
+        return HttpRequest.newBuilder(URI.create(base() + "/cache/" + path));
+    }
+
+    private String base() {
+        return "http://127.0.0.1:" + port;
     }
 
     private static String header(HttpResponse<?> response, String name) {

@@ -20,31 +20,40 @@ class NegativeCacheTest {
     void remembersAMissUntilTheTtlExpires() {
         NegativeCache cache = new NegativeCache(Duration.ofMinutes(5), clock);
 
-        cache.remember(PATH);
+        cache.remember("group", PATH);
         clock.advance(Duration.ofMinutes(4));
-        assertTrue(cache.isKnownMissing(PATH));
+        assertTrue(cache.isKnownMissing("group", PATH));
 
         clock.advance(Duration.ofMinutes(2));
-        assertFalse(cache.isKnownMissing(PATH));
+        assertFalse(cache.isKnownMissing("group", PATH));
     }
 
     @Test
     void zeroTtlDisablesTheCache() {
         NegativeCache cache = new NegativeCache(Duration.ZERO, clock);
 
-        cache.remember(PATH);
+        cache.remember("group", PATH);
 
-        assertFalse(cache.isKnownMissing(PATH));
+        assertFalse(cache.isKnownMissing("group", PATH));
     }
 
     @Test
     void forgetsAPathOnRequest() {
         NegativeCache cache = new NegativeCache(Duration.ofMinutes(5), clock);
-        cache.remember(PATH);
+        cache.remember("group", PATH);
 
-        cache.forget(PATH);
+        cache.forget("group", PATH);
 
-        assertFalse(cache.isKnownMissing(PATH));
+        assertFalse(cache.isKnownMissing("group", PATH));
+    }
+
+    @Test
+    void keepsScopesApart() {
+        NegativeCache cache = new NegativeCache(Duration.ofMinutes(5), clock);
+
+        cache.remember("group", PATH);
+
+        assertFalse(cache.isKnownMissing("google", PATH));
     }
 
     static class MutableClock extends Clock {

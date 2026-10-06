@@ -20,20 +20,17 @@ public class UpstreamClient {
         this.responseTimeout = responseTimeout;
     }
 
-    /** Opens a GET for {@code path} below {@code baseUrl}. The caller must close the returned response. */
-    public UpstreamResponse get(String baseUrl, ArtifactPath path) throws IOException {
-        String url = stripTrailingSlash(baseUrl) + "/" + path.value();
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url)).timeout(responseTimeout).GET().build();
+    /** Opens a GET for {@code path} in {@code repository}. The caller must close the returned response. */
+    public UpstreamResponse get(Repository repository, ArtifactPath path) throws IOException {
+        String url = repository.url() + "/" + path.value();
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(url)).timeout(responseTimeout).GET();
+        repository.authorization().ifPresent(value -> request.header("Authorization", value));
         try {
-            HttpResponse<InputStream> response = http.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            HttpResponse<InputStream> response = http.send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
             return new UpstreamResponse(url, response.statusCode(), response.headers(), response.body());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new InterruptedIOException("Interrupted while fetching " + url);
         }
-    }
-
-    private static String stripTrailingSlash(String url) {
-        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 }

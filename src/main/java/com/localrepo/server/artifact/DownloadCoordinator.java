@@ -35,28 +35,28 @@ public class DownloadCoordinator implements AutoCloseable {
         watchdog.scheduleAtFixedRate(this::abortIdleDownloads, period, period, TimeUnit.MILLISECONDS);
     }
 
-    /** Returns the download already running for {@code path}, or starts {@code fetch} in a new one. */
-    public Download join(ArtifactPath path, Consumer<Download> fetch) {
+    /** Returns the download already running under {@code key}, or starts {@code fetch} in a new one. */
+    public Download join(String key, ArtifactPath path, Consumer<Download> fetch) {
         boolean[] created = {false};
-        Download download = inFlight.computeIfAbsent(path.value(), key -> {
+        Download download = inFlight.computeIfAbsent(key, k -> {
             created[0] = true;
             return new Download(path, clock);
         });
         if (created[0]) {
             tracker.started(download);
-            Thread.ofVirtual().name("download-" + path.fileName()).start(() -> run(download, fetch));
+            Thread.ofVirtual().name("download-" + path.fileName()).start(() -> run(key, download, fetch));
         }
         return download;
     }
 
-    private void run(Download download, Consumer<Download> fetch) {
+    private void run(String key, Download download, Consumer<Download> fetch) {
         try {
             fetch.accept(download);
         } catch (RuntimeException e) {
             log.error("Download of {} crashed", download.path().value(), e);
             download.failed(new java.io.IOException(e));
         } finally {
-            inFlight.remove(download.path().value(), download);
+            inFlight.remove(key, download);
             tracker.finished(download);
         }
     }
