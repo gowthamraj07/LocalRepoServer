@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
@@ -114,6 +115,7 @@ public class ArtifactStore {
             ArtifactMeta meta = new ArtifactMeta(origin.url(), origin.etag(), origin.lastModified(), clock.instant(),
                     size, HexFormat.of().formatHex(sha256.digest()));
             json.writeValue(metaFileFor(file).toFile(), meta);
+            makeReadable(part);
             Files.move(part, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             committed = true;
             return new CachedArtifact(path, file, meta);
@@ -174,6 +176,13 @@ public class ArtifactStore {
 
     private String relative(Path file) {
         return root.relativize(file).toString().replace(file.getFileSystem().getSeparator(), "/");
+    }
+
+    /** Temp files are created owner-only; the cache should be readable like any Maven repository. */
+    private static void makeReadable(Path file) throws IOException {
+        if (file.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+            Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-r--r--"));
+        }
     }
 
     private static MessageDigest sha256() {

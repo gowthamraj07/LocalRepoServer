@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -60,6 +61,13 @@ class ArtifactStoreTest {
         assertEquals(NOW, meta.fetchedAt());
         assertEquals(10, meta.size());
         assertEquals("618a333ca21cdc97fc758355c6127cb83ae2a1b0c892a8b7a1b726b02d378a54", meta.sha256());
+    }
+
+    @Test
+    void makesCommittedArtifactsWorldReadable() throws IOException {
+        Path file = store.save(POM, bytes("<project/>"), ORIGIN).file();
+
+        assertEquals(PosixFilePermissions.fromString("rw-r--r--"), Files.getPosixFilePermissions(file));
     }
 
     @Test
