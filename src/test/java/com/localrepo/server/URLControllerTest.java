@@ -16,7 +16,6 @@ import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.List;
 
@@ -29,7 +28,6 @@ public class URLControllerTest {
     private final DependencyCrudRepository curdRepository = Mockito.mock(DependencyCrudRepository.class);
 
     private URLController controller;
-    private PrintWriter writer;
     private DependencyRepository repository;
     private FileRepository fileRepository;
     private NetworkRepository networkRepository;
@@ -50,21 +48,13 @@ public class URLControllerTest {
         }
 
         repository = Mockito.mock(DependencyRepository.class);
-        writer = Mockito.mock(PrintWriter.class);
         fileRepository = Mockito.mock(FileRepository.class);
         networkRepository = Mockito.mock(NetworkRepository.class);
 
         Mockito.when(fileRepository.getRepoDirectoryPath()).thenReturn("./");
         Mockito.when(repository.getId(ArgumentMatchers.any(DependencyDomain.class))).thenReturn(DIRECTORY_ID);
 
-        controller = new URLController(writer, repository, fileRepository, networkRepository);
-    }
-
-    @Test
-    public void shouldPrintTheRequestURL() {
-        controller.getDependency(ANY_PATH);
-
-        Mockito.verify(writer).println(ANY_PATH);
+        controller = new URLController(repository, fileRepository, networkRepository);
     }
 
     @Test
@@ -78,7 +68,7 @@ public class URLControllerTest {
     public void shouldCreateFolderIfRepositoryReturnsIdAndWhenFolderDoesnotExists() {
         repository = new FakeFailureRepository();
         Mockito.when(fileRepository.isDirectoryExists(DIRECTORY_ID)).thenReturn(false);
-        controller = new URLController(writer, repository, fileRepository, networkRepository);
+        controller = new URLController(repository, fileRepository, networkRepository);
 
         controller.getDependency(ANY_PATH);
 
@@ -90,7 +80,7 @@ public class URLControllerTest {
     public void shouldNotCreateFolderWhenFolderAlreadyExists() {
         repository = new FakeFailureRepository();
         Mockito.when(fileRepository.isDirectoryExists(DIRECTORY_ID)).thenReturn(true);
-        controller = new URLController(writer, repository, fileRepository, networkRepository);
+        controller = new URLController(repository, fileRepository, networkRepository);
 
         controller.getDependency(ANY_PATH);
 
@@ -102,7 +92,7 @@ public class URLControllerTest {
     public void shouldMakeNetworkCallWhenDirectoryNotExists() {
         repository = new FakeFailureRepository();
         Mockito.when(fileRepository.isDirectoryExists(DIRECTORY_ID)).thenReturn(false);
-        controller = new URLController(writer, repository, fileRepository, networkRepository);
+        controller = new URLController(repository, fileRepository, networkRepository);
 
         controller.getDependency(ANY_PATH);
 
@@ -114,7 +104,7 @@ public class URLControllerTest {
     public void shouldNotMakeNetworkCallIfDataAlreadyExists() {
         repository = new FakeFailureRepository();
         Mockito.when(fileRepository.isDirectoryExists(PREFIX + DIRECTORY_ID)).thenReturn(true);
-        controller = new URLController(writer, repository, fileRepository, networkRepository);
+        controller = new URLController(repository, fileRepository, networkRepository);
 
         controller.getDependency(ANY_PATH);
 
@@ -133,7 +123,7 @@ public class URLControllerTest {
         List<DependencyDomain> requestUrlDomainList = Collections.emptyList();
         repository = new FakeRepository(requestUrlDomainList);
         Mockito.when(fileRepository.isDirectoryExists(PREFIX + DIRECTORY_ID)).thenReturn(true);
-        controller = new URLController(writer, repository, fileRepository, networkRepository);
+        controller = new URLController(repository, fileRepository, networkRepository);
 
         List<DependencyDomain> actualResponseDomainList = controller.listAvailableDependencies();
 
@@ -144,7 +134,7 @@ public class URLControllerTest {
     public void shouldUpdateUrlContextWhenRequestedUrlIsSuccessfullyDownloaded() {
         NetworkRepository.Callback callback = new SuccessNetworkCallback(repository);
         networkRepository = new SuccessNetworkRepository(callback);
-        controller = new URLController(writer, repository, fileRepository, networkRepository);
+        controller = new URLController(repository, fileRepository, networkRepository);
 
         controller.getDependency(ANY_PATH);
 

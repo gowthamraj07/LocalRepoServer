@@ -1,5 +1,7 @@
 package com.localrepo.server.repository;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.localrepo.server.domain.Repositories;
 import org.apache.commons.io.FileUtils;
 
@@ -8,6 +10,8 @@ import java.io.IOException;
 import java.net.URL;
 
 public class NetworkRepository {
+
+    private static final Logger log = LoggerFactory.getLogger(NetworkRepository.class);
 
 
     public static final String GOOGLE_MAVEN_REPOSITORY_URL = "https://maven.google.com";
@@ -27,12 +31,12 @@ public class NetworkRepository {
         for (String hostUrl : repositories.getRepos()) {
             try {
                 downloadDependencyFrom(path, localDirectoryPath, hostUrl);
-                System.out.println("Successfully cached the file ("+path+") from host ("+hostUrl+")...");
+                log.info("Caching {} from {}", path, hostUrl);
                 callback.onSuccess(path, hostUrl);
                 isEligibleForDelete = false;
                 break;
             } catch (IOException e) {
-                //e.printStackTrace();
+                log.debug("Could not fetch {} from {}", path, hostUrl, e);
             }
         }
 
@@ -43,10 +47,7 @@ public class NetworkRepository {
 
     void downloadDependencyFrom(String path, String localDirectoryPath, String host) throws IOException {
         String spec = host + path;
-        System.out.println("spec : " + spec);
         URL source = new URL(spec);
-        System.out.println(source);
-        System.out.println("file to create : " + (localDirectoryPath + "/" + getFileName(source)));
         File file = new File(localDirectoryPath + "/" + getFileName(source));
         if (file.getParentFile() != null && !file.getParentFile().exists()) {
             file.getParentFile().mkdirs();
@@ -58,7 +59,7 @@ public class NetworkRepository {
             try {
                 FileUtils.copyURLToFile(source, file, 5000, 5000);
             } catch (IOException e) {
-                e.printStackTrace();
+                log.warn("Download of {} failed", source, e);
             }
         }).start();
         //FileUtils.copyURLToFile(source, file, 5000, 5000);

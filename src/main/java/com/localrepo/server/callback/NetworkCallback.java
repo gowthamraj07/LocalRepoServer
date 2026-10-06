@@ -1,11 +1,15 @@
 package com.localrepo.server.callback;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.localrepo.server.domain.DependencyDomain;
 import com.localrepo.server.repository.DependencyRepository;
 import com.localrepo.server.repository.FileRepository;
 import com.localrepo.server.repository.NetworkRepository;
 
 public class NetworkCallback implements NetworkRepository.Callback {
+
+    private static final Logger log = LoggerFactory.getLogger(NetworkCallback.class);
     private DependencyRepository repository;
     private FileRepository fileRepository;
 
@@ -17,12 +21,12 @@ public class NetworkCallback implements NetworkRepository.Callback {
     @Override
     public void onError(String url, String message) {
     	if(getDomain(url) == null) {
-    		System.out.println(">>>>>>>>"+url);
+    		log.warn("No record found for {}", url);
     		return;
     	}
 
     	if(getDomain(url).getId() == null) {
-    		System.out.println(">>>>>>>> (id is null) :"+url);
+    		log.warn("Record for {} has no id", url);
     		return;
     	}
 

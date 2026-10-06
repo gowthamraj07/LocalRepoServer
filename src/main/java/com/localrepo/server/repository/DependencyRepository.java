@@ -1,11 +1,15 @@
 package com.localrepo.server.repository;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.localrepo.server.domain.DependencyDomain;
 
 import java.net.URI;
 import java.util.List;
 
 public class DependencyRepository {
+
+    private static final Logger log = LoggerFactory.getLogger(DependencyRepository.class);
     private DependencyCrudRepository crudRepository;
 
     public DependencyRepository(DependencyCrudRepository crudRepository) {
@@ -48,8 +52,7 @@ public class DependencyRepository {
             domain.setHost(uri.getScheme() + "://" + uri.getHost() + ":" + uri.getPort());
             domain.setRequestedPath(uri.getPath());
 
-            System.out.println("No domain found for the searching path (" + path +")");
-            System.out.println("So returning DependencyDomain ( " + domain + ")");
+            log.debug("No record for {}, using {}", path, domain);
 
             return domain;
         }
