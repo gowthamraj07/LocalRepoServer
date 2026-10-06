@@ -298,6 +298,7 @@ class ArtifactControllerTest {
     @Test
     void listsCachedArtifactsWithTheirRepository() throws Exception {
         fetch("junit/junit/4.13.2/junit-4.13.2.pom");
+        waitForBackgroundDownloads();
 
         HttpResponse<String> list = http.send(HttpRequest.newBuilder(URI.create(base() + "/list")).build(),
                 HttpResponse.BodyHandlers.ofString());
