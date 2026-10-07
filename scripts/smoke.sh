@@ -12,9 +12,12 @@
 # Nothing in your real ~/.gradle, ~/.m2 or the project is changed. Your ~/.gradle/gradle.properties is copied into the
 # throwaway Gradle home (mode 600) so private repository credentials keep working.
 #
+# Your config.yml and upstreams.yml (private repositories) are copied from CONFIG_DIR (default ~/.localrepo) into the
+# throwaway server home, so the server is set up as yours is.
+#
 # Environment: WORK (default $TMPDIR/localrepo-smoke/<project>), PORT (default 18090), LOCALREPO_JAR (default the
-# newest target/server-*.jar), KEEP_CACHE=1 to reuse the server cache from an earlier run, SERVER_ARGS for extra
-# space-separated server arguments in both phases (e.g. --spring.config.additional-location=file:upstreams.yml).
+# newest target/server-*.jar), KEEP_CACHE=1 to reuse the server cache from an earlier run, CONFIG_DIR, SERVER_ARGS for
+# extra space-separated server arguments in both phases.
 set -euo pipefail
 
 maven=false
@@ -23,7 +26,7 @@ if [[ "${1:-}" == "--maven" ]]; then
     shift
 fi
 if [[ $# -lt 2 ]]; then
-    sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
     exit 2
 fi
 project=$(cd "$1" && pwd)
@@ -38,8 +41,12 @@ base="http://127.0.0.1:$port"
 dead="http://127.0.0.1:9"
 server_pid=""
 
-mkdir -p "$work"
+mkdir -p "$work/home"
 [[ "${KEEP_CACHE:-}" == 1 ]] || rm -rf "$work/cache"
+for file in config.yml upstreams.yml; do
+    rm -f "$work/home/$file"
+    [[ -f "${CONFIG_DIR:-$HOME/.localrepo}/$file" ]] && cp "${CONFIG_DIR:-$HOME/.localrepo}/$file" "$work/home/"
+done
 log() { printf '\n== %s\n' "$*"; }
 
 stop_server() {
@@ -53,7 +60,7 @@ trap stop_server EXIT
 
 start_server() { # extra server arguments...
     stop_server
-    java -jar "$jar" --server.port="$port" --localrepo.cache-dir="$work/cache" \
+    java -jar "$jar" --server.port="$port" --localrepo.home="$work/home" --localrepo.cache-dir="$work/cache" \
         --localrepo.gradle-user-home="$work/gradle-home" --localrepo.maven-settings="$work/settings.xml" \
         ${SERVER_ARGS:-} "$@" > "$work/server-$phase.log" 2>&1 &
     server_pid=$!
@@ -72,6 +79,8 @@ offline_upstreams() { # the online server's upstreams, by name, all pointing at 
         printf -- '--localrepo.upstreams[%d].name=%s\n--localrepo.upstreams[%d].url=%s\n' "$i" "$name" "$i" "$dead"
         i=$((i + 1))
     done
+    # The list above already includes any extra upstreams.
+    echo "--localrepo.extra-upstreams="
 }
 
 cached_files() {

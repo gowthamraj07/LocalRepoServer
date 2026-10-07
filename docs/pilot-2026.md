@@ -28,8 +28,12 @@ Cold and warm times include compiling; the difference is almost entirely downloa
      credentials: { username-env: GPR_USER, password-env: GPR_KEY }
    ```
 
-   But today that means copying all default upstreams into a file passed with `--spring.config.additional-location`,
-   and exporting credentials that Gradle users already keep in `~/.gradle/gradle.properties`. → follow-up goal 14.
+   At the time that meant copying all default upstreams into a file passed with `--spring.config.additional-location`
+   and exporting the credentials. **Since fixed (goal 14):** the entry above goes under `localrepo.extra-upstreams` in
+   `~/.localrepo/upstreams.yml` (or is added on the Upstreams page), with
+   `credentials: { gradle-property-username: gpr.user, gradle-property-password: gpr.key }` read from
+   `~/.gradle/gradle.properties`. Re-run that way, without extra arguments or exported secrets: online 126 s,
+   offline 112 s ✅.
 2. **Overriding one upstream field on the command line killed the server** with a bare NullPointerException (Spring
    replaces lists as a whole). Fixed: a clear startup error naming the missing field (`02b62c1`).
 3. **Reinstalling the Maven mirror over a settings.xml LocalRepoServer had created failed** (`9869764`, fixed).
@@ -44,6 +48,6 @@ Cold and warm times include compiling; the difference is almost entirely downloa
 ```
 ./mvnw package -DskipTests
 scripts/smoke.sh --maven ../TicTacToe-SpringBoot-Kata verify
-SERVER_ARGS=--spring.config.additional-location=file:/path/to/upstreams.yml \
-  GPR_USER=… GPR_KEY=… scripts/smoke.sh ../../StudioProjects/DriveSmart :server:bootJar :composeApp:assembleDebug
+# uses ~/.localrepo/upstreams.yml (or CONFIG_DIR=...) for the GitHub Packages upstream
+scripts/smoke.sh ../../StudioProjects/DriveSmart :server:bootJar :composeApp:assembleDebug
 ```

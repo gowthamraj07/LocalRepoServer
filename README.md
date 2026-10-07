@@ -84,7 +84,7 @@ whose bytes do not match. The cache directory is itself a plain Maven repository
 
 ## Configuration
 
-Put settings in `~/.localrepo/config.yml`; `localrepo start` applies it. The defaults are in
+Put settings in `~/.localrepo/config.yml`; the server applies it on start. The defaults are in
 [application.yml](src/main/resources/application.yml).
 
 ```yaml
@@ -93,17 +93,27 @@ localrepo:
   pinned: [ "androidx/**" ]   # ...but never these
   metadata-ttl: 24h           # how long maven-metadata.xml and -SNAPSHOT files are served before rechecking
   offline: false
-  upstreams:                  # replaces the default list: copy the defaults from application.yml and add yours
-    - name: central
-      url: https://repo.maven.apache.org/maven2
-    - name: company
-      url: https://nexus.example.com/repository/maven-releases
-      includes: [ "com/example/**" ]               # only ask it for these paths
-      credentials: { username-env: NEXUS_USER, password-env: NEXUS_PASSWORD }
 ```
 
+**Private repositories** (a company Nexus, GitHub Packages) should be upstreams too, or their artifacts are not cached
+and builds that need them fail offline. Add them on the **Upstreams** page of the UI, or in
+`~/.localrepo/upstreams.yml`; they are tried after the built-in ones:
+
+```yaml
+localrepo:
+  extra-upstreams:
+    - name: github-mobile-deps
+      url: https://maven.pkg.github.com/owner/repo
+      includes: [ "io/github/owner/**" ]          # only ask it for these paths
+      credentials: { gradle-property-username: gpr.user, gradle-property-password: gpr.key }
+```
+
+Credentials are given by name, never stored: keys of `~/.gradle/gradle.properties` (`gradle-property-username`,
+`-password`, `-token`), where Gradle users keep them already, or environment variables (`username-env`,
+`password-env`, `token-env`).
+
  * A miss asks the upstreams in order, skipping those whose `includes`/`excludes` rule the path out. `/repo/<name>/`
-   asks one upstream directly. Credentials are read from the named environment variables, never stored
+   asks one upstream directly. `localrepo.upstreams` replaces the built-in list entirely
  * Released artifacts never change, so once cached they are served forever. Version listings and snapshots are
    rechecked with a conditional request after `metadata-ttl`; if the upstream is down the cached copy is served
    (marked `X-LocalRepo-Stale: true`)
@@ -138,8 +148,8 @@ so other websites cannot trigger them.
    log in `~/.localrepo/logs/server.log`
  * A Gradle build that should go through the server does not: is the server running (the init script quietly steps
    aside when it is not), and was the build started with `-Plocalrepo.disabled=true`?
- * A dependency from a private repository is missing offline: add that repository as an upstream (see Configuration),
-   so the server caches it too
+ * A dependency from a private repository is missing offline: add that repository on the Upstreams page (see
+   Configuration), so the server caches it too
  * Suspect a corrupt file: Setup → Check the cache, or delete it on the Artifacts page; it is fetched again on next use
 
 ## Development
