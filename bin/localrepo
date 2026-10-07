@@ -14,6 +14,7 @@
 #   localrepo offline on|off          never contact upstreams / back to normal
 #   localrepo export [file] [window]  zip the cache (or what was used within e.g. 1h) for another machine
 #   localrepo import <file>           load such a zip
+#   localrepo move-cache <dir>        move the cache, e.g. to a bigger external disk, and use it from now on
 #   localrepo service install         start at login (macOS launchd)
 #   localrepo service uninstall
 #   localrepo version
@@ -36,7 +37,7 @@ plist="$HOME/Library/LaunchAgents/$label.plist"
 die() { echo "localrepo: $*" >&2; exit 1; }
 
 usage() {
-    sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 java_cmd() {
@@ -58,8 +59,34 @@ running_pid() {
     kill -0 "$pid" 2> /dev/null && echo "$pid"
 }
 
-healthy() {
-    curl -fs --max-time 2 "$base/actuator/health" > /dev/null 2>&1
+health_code() {
+    curl -s -o /dev/null -w '%{http_code}' --max-time 2 "$base/actuator/health" 2> /dev/null || true
+}
+
+# The server answers 503 (but runs) while its cache directory is unavailable, e.g. on a disk that is not connected.
+responding() {
+    local code
+    code=$(health_code)
+    [[ "$code" == 200 || "$code" == 503 ]]
+}
+
+cache_warning() {
+    if [[ "$(health_code)" == 503 ]]; then
+        echo "WARNING: the cache folder $(cache_dir) is unavailable; is its disk connected?"
+        echo "         Gradle builds use their own repositories until it is back; Maven builds fail."
+    fi
+}
+
+# Where the cache is: as the running server reports it, else as config.yml sets it, else the default.
+cache_dir() {
+    local dir=""
+    if responding; then
+        dir=$(curl -fs --max-time 5 "$base/api/stats" | sed -n 's/.*"cacheDir":"\([^"]*\)".*/\1/p')
+    fi
+    if [[ -z "$dir" && -f "$home/config.yml" ]]; then
+        dir=$(sed -n 's/^localrepo\.cache-dir: *"\{0,1\}\([^"]*\)"\{0,1\} *$/\1/p' "$home/config.yml" | tail -1)
+    fi
+    echo "${dir:-$home/cache}"
 }
 
 server_command() {
@@ -72,7 +99,7 @@ server_command() {
 }
 
 start() {
-    mkdir -p "$home/logs" "$home/cache"
+    mkdir -p "$home/logs"
     local command=()
     while IFS= read -r arg; do command+=("$arg"); done < <(server_command)
     if [[ "${1:-}" == "--foreground" ]]; then
@@ -85,14 +112,15 @@ start() {
     nohup "${command[@]}" >> "$log_file" 2>&1 &
     echo $! > "$pid_file"
     for _ in $(seq 1 60); do
-        if healthy; then
+        if responding; then
             echo "LocalRepoServer is running at $base (pid $(cat "$pid_file"), log $log_file)"
+            cache_warning
             return
         fi
         kill -0 "$(cat "$pid_file")" 2> /dev/null || die "the server exited; see $log_file"
         sleep 1
     done
-    die "the server did not become healthy within 60s; see $log_file"
+    die "the server did not start within 60s; see $log_file"
 }
 
 stop() {
@@ -104,7 +132,7 @@ stop() {
         done
         rm -f "$pid_file"
         echo "Stopped LocalRepoServer"
-    elif healthy; then
+    elif responding; then
         echo "LocalRepoServer at $base was not started by this command (launchd service?); not stopping it"
     else
         rm -f "$pid_file"
@@ -113,12 +141,13 @@ stop() {
 }
 
 status() {
-    if ! healthy; then
+    if ! responding; then
         echo "LocalRepoServer is not running at $base"
         return 3
     fi
     echo "LocalRepoServer is running at $base"
-    curl -fs "$base/api/stats" | sed -e 's/[{}]//g' -e 's/,"/\n  /g' -e 's/^"/  /' -e 's/":/: /g'
+    cache_warning
+    curl -fs "$base/api/stats" | sed -e 's/[{}]//g' -e 's/,"/\n  /g' -e 's/^"/  /' -e 's/":/: /g' -e 's/"//g'
     echo
     printf '  gradle: '; curl -fs "$base/setup/gradle"; echo
     printf '  maven:  '; curl -fs "$base/setup/maven"; echo
@@ -126,7 +155,7 @@ status() {
 }
 
 require_running() {
-    healthy || die "LocalRepoServer is not running at $base (localrepo start)"
+    responding || die "LocalRepoServer is not running at $base (localrepo start)"
 }
 
 action() { # method path [curl args...]
@@ -135,6 +164,75 @@ action() { # method path [curl args...]
     shift 2
     curl -fsS -X "$method" -H 'X-LocalRepo-Action: true' "$@" "$base$path"
     echo
+}
+
+# Sets a top-level key of config.yml. Dotted keys (localrepo.cache-dir: ...) sit beside a localrepo: block without
+# clashing with it.
+set_config() { # key value
+    local key=$1 value=$2 config="$home/config.yml" escaped
+    mkdir -p "$home"
+    touch "$config"
+    escaped=$(printf '%s' "$value" | sed 's/[\\&|]/\\&/g')
+    if grep -q "^${key//./\\.}:" "$config"; then
+        sed -i.bak "s|^${key//./\\.}:.*|$key: \"$escaped\"|" "$config" && rm -f "$config.bak"
+    else
+        [[ -s "$config" && -n "$(tail -c 1 "$config")" ]] && echo >> "$config"
+        printf '%s: "%s"\n' "$key" "$value" >> "$config"
+    fi
+}
+
+move_cache() { # target
+    local target=${1:-}
+    [[ -n "$target" ]] || die "usage: localrepo move-cache <directory>"
+    mkdir -p "$(dirname "$target")" 2> /dev/null || die "cannot create $(dirname "$target"); is its disk connected?"
+    target="$(cd "$(dirname "$target")" && pwd)/$(basename "$target")"
+    if [[ -f "$home/config.yml" ]] && grep -Eq '^[[:space:]]+cache-dir:' "$home/config.yml"; then
+        die "$home/config.yml sets cache-dir inside a localrepo: block; remove that line first"
+    fi
+    local current
+    current=$(cache_dir)
+    [[ "$target" != "$current" ]] || die "the cache is already in $target"
+    case "$target/" in "$current/"*) die "$target is inside the current cache $current" ;; esac
+    if [[ -e "$target" && ( ! -d "$target" || -n "$(ls -A "$target")" ) ]]; then
+        die "$target already exists and is not an empty folder"
+    fi
+
+    local service_loaded=false was_running=false
+    if service_runs_this_home; then
+        service_loaded=true
+        unload_service
+    fi
+    if running_pid > /dev/null; then
+        was_running=true
+        stop > /dev/null
+    fi
+    responding && die "a server this command did not start is still running at $base; stop it first"
+
+    if [[ -d "$current" ]]; then
+        echo "Moving $current to $target (a large cache on another disk takes a while)"
+        [[ -d "$target" ]] && rmdir "$target"
+        mv "$current" "$target"
+    else
+        mkdir -p "$target"
+    fi
+    set_config localrepo.cache-dir "$target"
+    echo "The cache is now in $target (set in $home/config.yml)"
+
+    if $service_loaded; then
+        launchctl bootstrap "gui/$(id -u)" "$plist"
+        for _ in $(seq 1 60); do responding && break; sleep 1; done
+        echo "Restarted the login service"
+        cache_warning
+    elif $was_running; then
+        start
+    fi
+}
+
+# Whether the login service is loaded and runs the server of this LOCALREPO_HOME (not some other installation's).
+service_runs_this_home() {
+    [[ "$(uname)" == Darwin && -f "$plist" ]] || return 1
+    grep -qF "<string>$home</string>" "$plist" || return 1
+    launchctl print "gui/$(id -u)/$label" > /dev/null 2>&1
 }
 
 # bootout returns before the job is gone, and bootstrapping it again meanwhile fails with an I/O error.
@@ -223,6 +321,7 @@ case "${1:-help}" in
         action POST /api/import -H 'Content-Type: application/zip' --data-binary "@$2"
         ;;
     service) service "${2:-}" ;;
+    move-cache) move_cache "${2:-}" ;;
     version)
         [[ -f "$jar" ]] || die "no server jar at $jar"
         unzip -p "$jar" META-INF/MANIFEST.MF | tr -d '\r' | sed -n 's/^Implementation-Version: /LocalRepoServer /p'
