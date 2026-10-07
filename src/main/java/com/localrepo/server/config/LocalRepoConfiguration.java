@@ -4,7 +4,9 @@ import com.localrepo.server.artifact.ArtifactService;
 import com.localrepo.server.artifact.ArtifactStore;
 import com.localrepo.server.artifact.DownloadCoordinator;
 import com.localrepo.server.artifact.DownloadTracker;
+import com.localrepo.server.artifact.FreshnessPolicy;
 import com.localrepo.server.artifact.NegativeCache;
+import com.localrepo.server.artifact.OfflineMode;
 import com.localrepo.server.artifact.Repository;
 import com.localrepo.server.artifact.UpstreamClient;
 import org.slf4j.Logger;
@@ -58,16 +60,22 @@ public class LocalRepoConfiguration {
     }
 
     @Bean
+    OfflineMode offlineMode(LocalRepoProperties properties) {
+        return new OfflineMode(properties.offline());
+    }
+
+    @Bean
     ArtifactService artifactService(LocalRepoProperties properties, Environment environment, Clock clock,
                                     UpstreamClient upstreamClient, NegativeCache negativeCache,
-                                    DownloadCoordinator downloads) {
+                                    DownloadCoordinator downloads, OfflineMode offline) {
         List<Repository> repositories = upstreams(properties, environment).stream()
                 .map(upstream -> new Repository(upstream.name(), upstream.url(), upstream.includes(),
                         upstream.excludes(), credentials(upstream, environment),
                         new ArtifactStore(properties.cacheDir().resolve(upstream.name()), clock)))
                 .toList();
         repositories.forEach(r -> log.info("Upstream {}", r));
-        return new ArtifactService(repositories, upstreamClient, negativeCache, downloads);
+        return new ArtifactService(repositories, upstreamClient, negativeCache, downloads,
+                new FreshnessPolicy(properties.metadataTtl(), clock), offline);
     }
 
     /** {@code --repos=url1,url2} replaces the configured upstreams with unfiltered ones named after their hosts. */

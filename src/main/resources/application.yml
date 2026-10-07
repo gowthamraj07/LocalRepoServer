@@ -12,6 +12,10 @@ localrepo:
   negative-cache-ttl: 5m
   connect-timeout: 10s
   read-idle-timeout: 60s
+  # maven-metadata.xml and -SNAPSHOT files are checked with the upstream again after this; releases never are.
+  metadata-ttl: 24h
+  # Never contact an upstream; also switchable at runtime with POST /api/offline.
+  offline: false
   gradle-user-home: ${GRADLE_USER_HOME:${user.home}/.gradle}
   maven-settings: ${user.home}/.m2/settings.xml
   # Tried in this order by /cache/** (the group), filtered by includes/excludes. `--repos=a,b` replaces the list.

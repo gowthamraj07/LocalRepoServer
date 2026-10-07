@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -37,7 +38,11 @@ class ArtifactServiceTest {
 
     @TempDir
     Path root;
-    private final Clock clock = Clock.systemUTC();
+    private static final String METADATA = "/maven2/junit/junit/maven-metadata.xml";
+    private static final ArtifactPath METADATA_PATH = ArtifactPath.of("junit/junit/maven-metadata.xml");
+
+    private final NegativeCacheTest.MutableClock clock = new NegativeCacheTest.MutableClock(Instant.now());
+    private final OfflineMode offline = new OfflineMode(false);
     private ArtifactService service;
 
     @BeforeEach
@@ -232,6 +237,97 @@ class ArtifactServiceTest {
         assertEquals(second.baseUrl() + POM, artifact.meta().upstreamUrl());
     }
 
+    @Test
+    void neverRevalidatesARelease() throws Exception {
+        first.stubFor(get(POM).willReturn(ok("<project/>")));
+        service.resolveAndWait(PATH);
+        clock.advance(Duration.ofDays(365));
+
+        service.resolveAndWait(PATH).orElseThrow();
+
+        first.verify(1, getRequestedFor(urlEqualTo(POM)));
+    }
+
+    @Test
+    void servesFreshMetadataFromTheCache() throws Exception {
+        first.stubFor(get(METADATA).willReturn(ok("<metadata>v1</metadata>")));
+        service.resolveAndWait(METADATA_PATH);
+        clock.advance(Duration.ofHours(23));
+
+        service.resolveAndWait(METADATA_PATH).orElseThrow();
+
+        first.verify(1, getRequestedFor(urlEqualTo(METADATA)));
+    }
+
+    @Test
+    void revalidatesStaleMetadataAndKeepsItWhenUnchanged() throws Exception {
+        first.stubFor(get(METADATA).willReturn(ok("<metadata>v1</metadata>").withHeader("ETag", "\"m1\"")));
+        service.resolveAndWait(METADATA_PATH);
+        first.stubFor(get(METADATA).withHeader("If-None-Match", equalTo("\"m1\"")).willReturn(status(304)));
+        clock.advance(Duration.ofHours(25));
+
+        CachedArtifact revalidated = service.resolveAndWait(METADATA_PATH).orElseThrow();
+        service.resolveAndWait(METADATA_PATH);
+
+        assertEquals("<metadata>v1</metadata>", Files.readString(revalidated.file()));
+        assertEquals(clock.instant(), revalidated.meta().fetchedAt());
+        first.verify(2, getRequestedFor(urlEqualTo(METADATA)));
+    }
+
+    @Test
+    void replacesStaleMetadataThatChanged() throws Exception {
+        first.stubFor(get(METADATA).willReturn(ok("<metadata>v1</metadata>")));
+        service.resolveAndWait(METADATA_PATH);
+        first.stubFor(get(METADATA).willReturn(ok("<metadata>v2</metadata>")));
+        clock.advance(Duration.ofHours(25));
+
+        CachedArtifact refreshed = service.resolveAndWait(METADATA_PATH).orElseThrow();
+
+        assertEquals("<metadata>v2</metadata>", Files.readString(refreshed.file()));
+    }
+
+    @Test
+    void servesStaleMetadataWhenTheUpstreamIsDown() throws Exception {
+        first.stubFor(get(METADATA).willReturn(ok("<metadata>v1</metadata>")));
+        service.resolveAndWait(METADATA_PATH);
+        first.stubFor(get(METADATA).willReturn(aResponse().withFault(CONNECTION_RESET_BY_PEER)));
+        clock.advance(Duration.ofHours(25));
+
+        ArtifactService.Resolution resolution = service.resolve(METADATA_PATH);
+        Download download = ((ArtifactService.Resolution.Downloading) resolution).download();
+        CachedArtifact stale = download.awaitResult().orElseThrow();
+
+        assertEquals("<metadata>v1</metadata>", Files.readString(stale.file()));
+        assertTrue(download.isStale());
+    }
+
+    @Test
+    void offlineServesWhatIsCachedEvenIfStaleAndNeverTouchesTheNetwork() throws Exception {
+        first.stubFor(get(METADATA).willReturn(ok("<metadata>v1</metadata>")));
+        service.resolveAndWait(METADATA_PATH);
+        clock.advance(Duration.ofHours(25));
+        first.resetRequests();
+        offline.set(true);
+
+        ArtifactService.Resolution metadata = service.resolve(METADATA_PATH);
+        ArtifactService.Resolution miss = service.resolve(PATH);
+
+        assertTrue(metadata instanceof ArtifactService.Resolution.Cached cached && cached.stale());
+        assertInstanceOf(ArtifactService.Resolution.Missing.class, miss);
+        first.verify(0, anyRequestedFor(anyUrl()));
+        second.verify(0, anyRequestedFor(anyUrl()));
+    }
+
+    @Test
+    void goingBackOnlineFetchesMissesAgain() throws Exception {
+        offline.set(true);
+        service.resolveAndWait(PATH);
+        offline.set(false);
+        first.stubFor(get(POM).willReturn(ok("<project/>")));
+
+        assertTrue(service.resolveAndWait(PATH).isPresent());
+    }
+
     private Repository repo(String name, String url) {
         return repo(name, url, List.of(), List.of());
     }
@@ -252,6 +348,7 @@ class ArtifactServiceTest {
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
         return new ArtifactService(repositories, new UpstreamClient(http, idleTimeout),
                 new NegativeCache(Duration.ofMinutes(5), clock),
-                new DownloadCoordinator(clock, idleTimeout, new DownloadTracker(clock)));
+                new DownloadCoordinator(Clock.systemUTC(), idleTimeout, new DownloadTracker(clock)),
+                new FreshnessPolicy(Duration.ofHours(24), clock), offline);
     }
 }

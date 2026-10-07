@@ -100,6 +100,7 @@ class ArtifactControllerTest {
         registry.add("localrepo.upstreams[1].url", () -> "http://127.0.0.1:" + truncatingUpstream.getLocalPort() + "/maven2");
         registry.add("localrepo.cache-dir", cacheDir::toString);
         registry.add("localrepo.negative-cache-ttl", () -> "0s");
+        registry.add("localrepo.metadata-ttl", () -> "0s");
     }
 
     @LocalServerPort
@@ -305,6 +306,47 @@ class ArtifactControllerTest {
 
         assertTrue(list.body().contains("\"repository\":\"mock\""), list.body());
         assertTrue(list.body().contains("\"path\":\"junit/junit/4.13.2/junit-4.13.2.pom\""), list.body());
+    }
+
+    @Test
+    void marksMetadataServedStaleBecauseTheUpstreamIsDown() throws Exception {
+        String metadata = "/maven2/junit/junit/maven-metadata.xml";
+        upstream.stubFor(get(metadata).willReturn(ok("<metadata/>")));
+        fetch("junit/junit/maven-metadata.xml");
+        waitForBackgroundDownloads();
+        upstream.stubFor(get(metadata).willReturn(serverError()));
+
+        HttpResponse<byte[]> stale = fetch("junit/junit/maven-metadata.xml");
+
+        assertEquals(200, stale.statusCode());
+        assertEquals("<metadata/>", new String(stale.body(), StandardCharsets.UTF_8));
+        assertEquals("true", header(stale, "X-LocalRepo-Stale"));
+        assertTrue(header(stale, "Warning").startsWith("110"));
+    }
+
+    @Test
+    void switchesToOfflineModeAndBack() throws Exception {
+        HttpRequest.Builder on = HttpRequest.newBuilder(URI.create(base() + "/api/offline"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"enabled\":true}"));
+        assertEquals(403, http.send(on.build(), HttpResponse.BodyHandlers.ofString()).statusCode());
+
+        try {
+            HttpResponse<String> enabled = http.send(on.header("X-LocalRepo-Action", "true").build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals("{\"enabled\":true}", enabled.body());
+
+            assertEquals(404, fetch("junit/junit/4.13.2/junit-4.13.2.pom").statusCode());
+            upstream.verify(0, anyRequestedFor(anyUrl()));
+        } finally {
+            http.send(HttpRequest.newBuilder(URI.create(base() + "/api/offline"))
+                    .header("Content-Type", "application/json").header("X-LocalRepo-Action", "true")
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"enabled\":false}")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+        }
+        assertEquals("{\"enabled\":false}", http.send(HttpRequest.newBuilder(URI.create(base() + "/api/offline")).build(),
+                HttpResponse.BodyHandlers.ofString()).body());
+        assertEquals(200, fetch("junit/junit/4.13.2/junit-4.13.2.pom").statusCode());
     }
 
     @Test

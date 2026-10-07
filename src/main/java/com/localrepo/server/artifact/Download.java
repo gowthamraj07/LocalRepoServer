@@ -37,6 +37,7 @@ public final class Download {
     private volatile long bytesWritten;
     private volatile Instant lastActivity;
     private volatile Instant finishedAt;
+    private volatile boolean stale;
     private Origin origin;
     private long contentLength = -1;
     private Path partFile;
@@ -79,6 +80,12 @@ public final class Download {
         } finally {
             lock.unlock();
         }
+    }
+
+    /** Finishes with a copy we already had because the upstream could not confirm or replace it. */
+    void completeStale(CachedArtifact artifact) throws IOException {
+        stale = true;
+        complete(() -> artifact);
     }
 
     void notFound() {
@@ -149,6 +156,11 @@ public final class Download {
     public boolean isFinished() {
         State s = state;
         return s == State.COMPLETED || s == State.NOT_FOUND || s == State.FAILED;
+    }
+
+    /** Whether the result is an old copy served because the upstream could not be reached. */
+    public boolean isStale() {
+        return stale;
     }
 
     public long bytesWritten() {

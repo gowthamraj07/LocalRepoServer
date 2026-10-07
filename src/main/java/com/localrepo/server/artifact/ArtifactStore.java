@@ -62,6 +62,28 @@ public class ArtifactStore {
         }
     }
 
+    /**
+     * Records that the upstream confirmed the cached copy is still current: the fetch time becomes now, and any new
+     * validators replace the old ones.
+     */
+    public CachedArtifact refresh(ArtifactPath path, Origin confirmation) throws IOException {
+        CachedArtifact cached = find(path).orElseThrow(() -> new IOException(path.value() + " is not cached"));
+        ArtifactMeta old = cached.meta();
+        ArtifactMeta meta = new ArtifactMeta(old.upstreamUrl(),
+                confirmation.etag() != null ? confirmation.etag() : old.etag(),
+                confirmation.lastModified() != null ? confirmation.lastModified() : old.lastModified(),
+                clock.instant(), old.size(), old.sha256());
+        Path metaFile = metaFileFor(cached.file());
+        Path part = Files.createTempFile(metaFile.getParent(), metaFile.getFileName().toString() + ".", ArtifactPath.PART_SUFFIX);
+        try {
+            json.writeValue(part.toFile(), meta);
+            Files.move(part, metaFile, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(part);
+        }
+        return new CachedArtifact(path, cached.file(), meta);
+    }
+
     /** Starts writing {@code path}. Nothing is visible through {@link #find} until {@link PendingWrite#commit}. */
     public PendingWrite begin(ArtifactPath path) throws IOException {
         Path file = fileFor(path);

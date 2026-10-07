@@ -54,7 +54,7 @@ public class ArtifactController {
                                       HttpServletRequest request, HttpServletResponse response) throws IOException {
         boolean head = "HEAD".equals(request.getMethod());
         return switch (resolution) {
-            case ArtifactService.Resolution.Cached cached -> cachedResponse(path, cached.artifact());
+            case ArtifactService.Resolution.Cached cached -> cachedResponse(path, cached.artifact(), cached.stale());
             case ArtifactService.Resolution.Missing missing -> ResponseEntity.notFound().build();
             case ArtifactService.Resolution.Downloading downloading ->
                     streamingResponse(path, downloading.download(), head, response);
@@ -69,7 +69,7 @@ public class ArtifactController {
     private ResponseEntity<?> streamingResponse(ArtifactPath path, Download download, boolean head,
                                                 HttpServletResponse response) throws IOException {
         return switch (download.awaitHeaders()) {
-            case COMPLETED -> cachedResponse(path, download.awaitResult().orElseThrow());
+            case COMPLETED -> cachedResponse(path, download.awaitResult().orElseThrow(), download.isStale());
             case NOT_FOUND -> ResponseEntity.notFound().build();
             case FAILED, CONNECTING -> ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();
             case STREAMING -> {
@@ -114,8 +114,13 @@ public class ArtifactController {
         }
     }
 
-    private static ResponseEntity<?> cachedResponse(ArtifactPath path, CachedArtifact artifact) {
+    private static ResponseEntity<?> cachedResponse(ArtifactPath path, CachedArtifact artifact, boolean stale) {
         ResponseEntity.BodyBuilder response = ResponseEntity.ok().contentType(ContentTypes.of(path));
+        if (stale) {
+            // RFC 7234 warn-code 110; the custom header is easier to spot in a build log.
+            response.header(HttpHeaders.WARNING, "110 - \"Response is Stale\"");
+            response.header("X-LocalRepo-Stale", "true");
+        }
         ArtifactMeta meta = artifact.meta();
         withValidators(response, meta.etag(), meta.lastModified());
         if (meta.lastModified() == null) {

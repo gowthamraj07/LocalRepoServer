@@ -16,11 +16,13 @@ import java.util.List;
  *                         fetch is abandoned. There is no limit on the total download time.
  * @param gradleUserHome   where the Gradle init script is installed ({@code init.d} below it)
  * @param mavenSettings    the user's Maven settings file that the mirror is installed into
+ * @param metadataTtl      how long version listings and snapshots are served before checking the upstream again
+ * @param offline          start in offline mode: never contact an upstream
  */
 @ConfigurationProperties("localrepo")
 public record LocalRepoProperties(List<Upstream> upstreams, Path cacheDir, Duration negativeCacheTtl,
                                   Duration connectTimeout, Duration readIdleTimeout, Path gradleUserHome,
-                                  Path mavenSettings) {
+                                  Path mavenSettings, Duration metadataTtl, boolean offline) {
 
     public LocalRepoProperties {
         upstreams = upstreams == null ? List.of() : List.copyOf(upstreams);
@@ -31,6 +33,7 @@ public record LocalRepoProperties(List<Upstream> upstreams, Path cacheDir, Durat
         gradleUserHome = gradleUserHome == null ? Path.of(System.getProperty("user.home"), ".gradle") : gradleUserHome;
         mavenSettings = mavenSettings == null ? Path.of(System.getProperty("user.home"), ".m2", "settings.xml")
                 : mavenSettings;
+        metadataTtl = metadataTtl == null ? Duration.ofHours(24) : metadataTtl;
     }
 
     /**

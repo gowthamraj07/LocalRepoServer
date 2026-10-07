@@ -24,9 +24,11 @@ public class ArtifactService {
     private final UpstreamClient upstreamClient;
     private final NegativeCache negativeCache;
     private final DownloadCoordinator downloads;
+    private final FreshnessPolicy freshness;
+    private final OfflineMode offline;
 
     public ArtifactService(List<Repository> repositories, UpstreamClient upstreamClient, NegativeCache negativeCache,
-                           DownloadCoordinator downloads) {
+                           DownloadCoordinator downloads, FreshnessPolicy freshness, OfflineMode offline) {
         for (Repository repository : repositories) {
             if (repository.name().equals(GROUP) || this.repositories.putIfAbsent(repository.name(), repository) != null) {
                 throw new IllegalArgumentException("Duplicate or reserved repository name: " + repository.name());
@@ -35,10 +37,13 @@ public class ArtifactService {
         this.upstreamClient = upstreamClient;
         this.negativeCache = negativeCache;
         this.downloads = downloads;
+        this.freshness = freshness;
+        this.offline = offline;
     }
 
     public sealed interface Resolution {
-        record Cached(CachedArtifact artifact) implements Resolution {
+        /** {@code stale}: a changing file past its TTL, served without checking because the server is offline. */
+        record Cached(CachedArtifact artifact, boolean stale) implements Resolution {
         }
 
         record Downloading(Download download) implements Resolution {
@@ -85,15 +90,27 @@ public class ArtifactService {
     }
 
     private Resolution resolve(String scope, List<Repository> candidates, ArtifactPath path) {
-        Optional<CachedArtifact> cached = findCached(candidates, path);
-        if (cached.isPresent()) {
-            return new Resolution.Cached(cached.get());
+        Optional<Hit> hit = findCached(candidates, path);
+        if (hit.isPresent()) {
+            CachedArtifact artifact = hit.get().artifact();
+            if (!freshness.needsRevalidation(artifact)) {
+                return new Resolution.Cached(artifact, false);
+            }
+            if (offline.isEnabled()) {
+                return new Resolution.Cached(artifact, true);
+            }
+            return new Resolution.Downloading(downloads.join(scope + ":" + path.value(), path,
+                    download -> revalidate(hit.get(), download)));
         }
-        if (candidates.isEmpty() || negativeCache.isKnownMissing(scope, path)) {
+        if (offline.isEnabled() || candidates.isEmpty() || negativeCache.isKnownMissing(scope, path)) {
             return new Resolution.Missing();
         }
         return new Resolution.Downloading(downloads.join(scope + ":" + path.value(), path,
                 download -> fetch(scope, candidates, download)));
+    }
+
+    /** A cached artifact and the repository whose cache holds it. */
+    private record Hit(Repository repository, CachedArtifact artifact) {
     }
 
     private static Optional<CachedArtifact> await(Resolution resolution) throws IOException {
@@ -104,17 +121,47 @@ public class ArtifactService {
         };
     }
 
-    private static Optional<CachedArtifact> findCached(List<Repository> candidates, ArtifactPath path) {
-        return candidates.stream().flatMap(r -> r.store().find(path).stream()).findFirst();
+    private static Optional<Hit> findCached(List<Repository> candidates, ArtifactPath path) {
+        return candidates.stream()
+                .flatMap(r -> r.store().find(path).map(a -> new Hit(r, a)).stream())
+                .findFirst();
+    }
+
+    /** Asks the repository a changing file came from whether it changed; keeps the old copy if it cannot tell. */
+    private void revalidate(Hit hit, Download download) {
+        Repository repository = hit.repository();
+        ArtifactPath path = download.path();
+        try {
+            try (UpstreamResponse response = upstreamClient.get(repository, path, hit.artifact().meta())) {
+                if (response.isNotModified()) {
+                    CachedArtifact refreshed = repository.store().refresh(path, response.origin());
+                    download.complete(() -> refreshed);
+                    log.debug("{} unchanged in {}", path.value(), repository.name());
+                    return;
+                }
+                if (response.isOk()) {
+                    transfer(repository, download, response);
+                    return;
+                }
+                log.warn("{} answered {} revalidating {}; serving the cached copy", repository.name(),
+                        response.status(), path.value());
+            } catch (IOException e) {
+                log.warn("Could not revalidate {} with {} ({}); serving the cached copy", path.value(),
+                        repository.name(), e.toString());
+            }
+            download.completeStale(hit.artifact());
+        } catch (IOException e) {
+            download.failed(e);
+        }
     }
 
     private void fetch(String scope, List<Repository> candidates, Download download) {
         ArtifactPath path = download.path();
         // Another request may have committed it between our cache check and starting this download.
-        Optional<CachedArtifact> cached = findCached(candidates, path);
+        Optional<Hit> cached = findCached(candidates, path);
         if (cached.isPresent()) {
             try {
-                download.complete(cached::get);
+                download.complete(() -> cached.get().artifact());
             } catch (IOException e) {
                 download.failed(e);
             }

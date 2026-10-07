@@ -75,6 +75,11 @@ untouched and a backup is written next to it before every change.
  * Files are only stored once completely downloaded; a `<file>.meta.json` sidecar records where and when each came from
  * A path that no upstream has returns `404`, and is remembered for 5 minutes (`--localrepo.negative-cache-ttl`)
  * Change the cache location with `--localrepo.cache-dir=/some/dir`
+ * Released artifacts never change and are served from the cache forever. `maven-metadata.xml` and `-SNAPSHOT` files
+   are checked with their upstream again after 24 hours (`--localrepo.metadata-ttl`) with a conditional request; if the
+   upstream cannot be reached the cached copy is served with an `X-LocalRepo-Stale: true` header
+ * Offline mode never contacts an upstream: start with `--localrepo.offline=true`, or switch at runtime with
+   `curl -X POST -H 'X-LocalRepo-Action: true' -H 'Content-Type: application/json' -d '{"enabled":true}' http://localhost:8082/api/offline`
 -----
 
 ### End points
