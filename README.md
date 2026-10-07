@@ -22,7 +22,7 @@ no changes.
  * [Getting started](#getting-started): install, start, check it works
  * [Use it with your projects](#use-it-with-your-projects): every project at once, or one project by hand
  * [Day-to-day use](#day-to-day-use): the web UI, offline mode, moving to another machine
- * [Configuration](#configuration): cache size, private repositories, other settings
+ * [Configuration](#configuration): cache size, cache on an external disk, private repositories
  * [Troubleshooting](#troubleshooting), [API](#api), [Development](#development)
 
 ## Getting started
@@ -262,7 +262,7 @@ is being fetched, how fast, and how far along.
 
 `localrepo open`, or http://localhost:8082:
 
- * **Dashboard**: hit rate, bytes served from the cache, disk use
+ * **Dashboard**: hit rate, bytes served from the cache, disk use, where the cache is and how much space is left
  * **Downloads**: live progress of everything being fetched, and recent results
  * **Artifacts**: search the cache by path, see sizes, hits and last use, delete or re-fetch files
  * **Upstreams**: the repositories behind the server, their filters, and whether they are reachable; add your own
@@ -299,6 +299,7 @@ whose bytes do not match. The cache directory is itself a plain Maven repository
 | `localrepo open` | the web UI |
 | `localrepo offline on` / `off` | never contact an upstream |
 | `localrepo export <file> [age]` / `import <file>` | bundles |
+| `localrepo move-cache <dir>` | move the cache to another folder or disk and use it from now on |
 | `localrepo logs` | follow `~/.localrepo/logs/server.log` |
 | `localrepo version` | the installed version |
 
@@ -320,6 +321,33 @@ localrepo:
   metadata-ttl: 24h           # how long maven-metadata.xml and -SNAPSHOT files are served before rechecking
   offline: false
 ```
+
+### Keeping the cache on another disk
+
+The cache only grows (unless you set `max-size`), so a bigger external disk is a good home for it. Move it with:
+
+```
+localrepo move-cache /Volumes/MyDisk/LocalRepoCache
+```
+
+This stops the server (or the login service), moves everything already cached, records the new folder in
+`~/.localrepo/config.yml` (`localrepo.cache-dir: "/Volumes/MyDisk/LocalRepoCache"`) and starts the server again. Moving
+to another disk copies the files, so a large cache takes a while. To move it back, run it again with
+`~/.localrepo/cache`. You can also set `localrepo.cache-dir` yourself and move the folder by hand while the server is
+stopped.
+
+When that disk is not connected:
+
+ * the server keeps running, but reports itself as down (`/actuator/health` answers 503, `localrepo status` and the
+   dashboard warn about it). It never creates a new, empty cache somewhere else in the meantime
+ * **Gradle** builds notice and use their own repositories, as if the server were not running
+ * **Maven** builds fail, because the mirror sends everything to the server; connect the disk, or
+   `localrepo uninstall-maven` while you work without it
+ * when the disk is back, everything works again on its own; no restart needed. This also covers the login service
+   starting before the disk is mounted
+
+Any disk macOS can write to works. APFS or Mac OS Extended are best; on exFAT the cache works, but file permissions
+cannot be set.
 
 ### Private repositories
 
@@ -372,6 +400,9 @@ Credentials are given by name, never stored: keys of `~/.gradle/gradle.propertie
    `~/.m2/repository/**/*.lastUpdated`. Run once with `mvn -U`, or delete those files
  * **A dependency from a private repository is missing offline.** Add that repository on the Upstreams page (see
    [Private repositories](#private-repositories)), so the server caches it too
+ * **"The cache folder ... is unavailable".** The disk holding the cache is not connected (or the folder was moved
+   or deleted). Connect the disk; the server picks it up within seconds. See
+   [Keeping the cache on another disk](#keeping-the-cache-on-another-disk)
  * **Port 8082 is taken.** Use another: `LOCALREPO_PORT=8090 localrepo start`, then run `install-gradle` /
    `install-maven` again so they point at the new port
  * **Suspect a corrupt file.** Setup → Check the cache, or delete it on the Artifacts page; it is fetched again on next
@@ -388,14 +419,14 @@ so other websites cannot trigger them.
 | `GET /api/artifacts?q=&repository=&page=&size=` | cached files with coordinates, size, hits and last use |
 | `DELETE /api/artifacts?repository=&path=` | delete a file or everything below a path |
 | `POST /api/artifacts/refetch?repository=&path=` | download one file again |
-| `GET /api/stats`, `GET /api/downloads` | usage totals; active and recent downloads |
+| `GET /api/stats`, `GET /api/downloads` | usage totals, cache folder and free space; active and recent downloads |
 | `GET /api/events` | server-sent events: `download-started`, `-progress`, `-completed`, `-failed`, `cache-hit` |
 | `GET/POST /api/offline` | offline mode, `{"enabled": true}` |
 | `GET /api/export?repository=&path=&usedWithin=`, `POST /api/import` | bundles |
 | `POST /api/prefetch`, `POST /api/purge?path=&unusedFor=`, `POST /api/evict`, `POST /api/verify` | maintenance |
 | `GET /setup/gradle`, `POST /setup/gradle/install`, `/uninstall` | the Gradle init script; same under `/setup/maven` |
 | `GET /setup/maven/settings.xml` | a Maven settings file with the mirror, for `mvn -s` |
-| `GET /actuator/health` | liveness |
+| `GET /actuator/health` | 200 when the server can cache, 503 while the cache folder is unavailable |
 
 ## Development
 
