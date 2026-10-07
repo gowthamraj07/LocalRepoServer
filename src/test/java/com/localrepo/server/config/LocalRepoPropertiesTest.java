@@ -102,7 +102,8 @@ class LocalRepoPropertiesTest {
     }
 
     @Nested
-    @SpringBootTest
+    // An empty home, so the config.yml and upstreams.yml of whoever runs the tests are not applied.
+    @SpringBootTest(properties = "localrepo.home=${java.io.tmpdir}/localrepo-test-empty-home")
     class Defaults {
         @Autowired
         ArtifactService service;
