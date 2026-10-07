@@ -169,14 +169,14 @@ dependencyResolutionManagement {
 ```groovy
 pluginManagement {
     repositories {
-        maven { url 'http://localhost:8082/cache'; allowInsecureProtocol true }
+        maven { url = 'http://localhost:8082/cache'; allowInsecureProtocol = true }
         gradlePluginPortal()
     }
 }
 
 dependencyResolutionManagement {
     repositories {
-        maven { url 'http://localhost:8082/cache'; allowInsecureProtocol true }
+        maven { url = 'http://localhost:8082/cache'; allowInsecureProtocol = true }
         mavenCentral()
     }
 }
@@ -188,7 +188,8 @@ the same `maven { ... }` line as the first entry there.
 ### Per-project setup: Android and Kotlin/Compose Multiplatform
 
 Google Maven and JetBrains Compose are already upstreams of `/cache`, so the server is simply put first and the usual
-repositories stay as fallbacks. `settings.gradle.kts`:
+repositories stay as fallbacks. The same `settings.gradle.kts` works for Android apps and Kotlin/Compose Multiplatform
+projects (tested with Android Gradle Plugin 9.2 and Compose Multiplatform 1.12 on Gradle 9.4):
 
 ```kotlin
 pluginManagement {
