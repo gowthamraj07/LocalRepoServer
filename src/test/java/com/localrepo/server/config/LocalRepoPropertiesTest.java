@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import java.util.List;
 
@@ -52,6 +53,21 @@ class LocalRepoPropertiesTest {
             assertFalse(repository.accepts(ArtifactPath.of("org/other/a/1/a-1.jar")));
             assertEquals("Bearer s3cret", repository.authorization().orElseThrow());
         }
+    }
+
+    @Test
+    void explainsAnUpstreamWithoutAName() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(LocalRepoConfiguration.class)
+                .withPropertyValues("localrepo.upstreams[0].url=https://repo.example/m2")
+                .run(context -> {
+                    assertNotNull(context.getStartupFailure());
+                    Throwable cause = context.getStartupFailure();
+                    while (cause.getCause() != null && !(cause instanceof IllegalArgumentException)) {
+                        cause = cause.getCause();
+                    }
+                    assertTrue(cause.getMessage().contains("localrepo.upstreams[0] needs a name"), cause.getMessage());
+                });
     }
 
     @Nested

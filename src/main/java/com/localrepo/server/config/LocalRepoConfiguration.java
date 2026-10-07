@@ -74,7 +74,16 @@ public class LocalRepoConfiguration {
     static List<LocalRepoProperties.Upstream> upstreams(LocalRepoProperties properties, Environment environment) {
         String legacy = environment.getProperty("repos");
         if (legacy == null || legacy.isBlank()) {
-            return properties.upstreams();
+            List<LocalRepoProperties.Upstream> upstreams = properties.upstreams();
+            for (int i = 0; i < upstreams.size(); i++) {
+                LocalRepoProperties.Upstream upstream = upstreams.get(i);
+                if (upstream.name() == null || upstream.url() == null) {
+                    // Spring replaces a list as a whole, so setting only upstreams[i].url drops every other field.
+                    throw new IllegalArgumentException("localrepo.upstreams[" + i + "] needs a name and a url (when "
+                            + "overriding one field of an upstream, give its name and url too)");
+                }
+            }
+            return upstreams;
         }
         Set<String> names = new HashSet<>();
         List<LocalRepoProperties.Upstream> upstreams = new ArrayList<>();
