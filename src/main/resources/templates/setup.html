@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Setup')}"></head>
+<body hx-headers='{"X-LocalRepo-Action": "true"}'>
+<header th:replace="~{fragments/layout :: header('setup')}"></header>
+<main>
+    <h1>Setup</h1>
+    <p class="muted">Install once and every build on this machine goes through the server, without editing projects.</p>
+    <th:block th:replace="~{fragments/setup :: gradle}"></th:block>
+    <th:block th:replace="~{fragments/setup :: maven}"></th:block>
+    <section class="card">
+        <h2>One project by hand</h2>
+        <p>Put the server in front of a Gradle project's repositories:</p>
+        <pre><code th:text="|maven {
+    url = uri(&quot;${baseUrl}/cache&quot;)
+    isAllowInsecureProtocol = true
+}|"></code></pre>
+    </section>
+    <th:block th:replace="~{fragments/setup :: verify}"></th:block>
+</main>
+</body>
+</html>

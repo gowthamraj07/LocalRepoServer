@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="stats" class="tiles">
+    <div class="tile"><span class="label">Hit rate</span><span class="value" th:text="${@fmt.percent(stats.hitRate())}">0%</span>
+        <span class="muted" th:text="|${stats.hits()} hits · ${stats.misses()} misses|">0 hits</span></div>
+    <div class="tile"><span class="label">Saved</span><span class="value" th:text="${@fmt.bytes(stats.bytesServedFromCache())}">0 B</span>
+        <span class="muted">served from the cache</span></div>
+    <div class="tile"><span class="label">Downloaded</span><span class="value" th:text="${@fmt.bytes(stats.bytesDownloaded())}">0 B</span>
+        <span class="muted">from upstreams</span></div>
+    <div class="tile"><span class="label">Disk use</span><span class="value" th:text="${@fmt.bytes(stats.diskUsage())}">0 B</span>
+        <span class="muted" th:text="|${stats.artifactCount()} files|">0 files</span></div>
+    <div class="tile"><span class="label">Active downloads</span><span class="value" th:text="${stats.activeDownloads()}">0</span></div>
+</div>
+</body>
+</html>

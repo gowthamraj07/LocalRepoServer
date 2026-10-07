@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<section th:fragment="gradle" id="gradle-setup" class="card">
+    <h2>Gradle <span class="badge" th:classappend="${gradle.installed()} ? 'ok' : 'muted'"
+                     th:text="${gradle.installed()} ? (${gradle.current()} ? 'Installed' : 'Installed, outdated') : 'Not installed'">Not installed</span></h2>
+    <p>An init script in <code th:text="${gradle.path()}">~/.gradle/init.d</code> puts the server in front of every build's
+        repositories and plugin resolution. Builds use their own repositories when the server is not running; skip it for
+        one build with <code>-Plocalrepo.disabled=true</code>.</p>
+    <div class="buttons">
+        <button type="button" th:unless="${gradle.installed() and gradle.current()}" hx-post="/ui/setup/gradle/install"
+                hx-target="#gradle-setup" hx-swap="outerHTML"
+                th:text="${gradle.installed()} ? 'Update' : 'Install'">Install</button>
+        <button type="button" th:if="${gradle.installed()}" class="secondary" hx-post="/ui/setup/gradle/uninstall"
+                hx-target="#gradle-setup" hx-swap="outerHTML">Uninstall</button>
+        <a class="button secondary" href="/setup/gradle/localrepo.init.gradle" download>Download script</a>
+    </div>
+</section>
+
+<section th:fragment="maven" id="maven-setup" class="card">
+    <h2>Maven <span class="badge" th:classappend="${maven.installed()} ? 'ok' : 'muted'"
+                    th:text="${maven.installed()} ? 'Installed' : 'Not installed'">Not installed</span></h2>
+    <p>Adds a <code>mirrorOf *</code> mirror to <code th:text="${maven.path()}">~/.m2/settings.xml</code>, backing the file
+        up first. Maven has no fallback: while installed, the server must be running.</p>
+    <p class="error" th:if="${mavenError != null}" th:text="${mavenError}"></p>
+    <div class="buttons">
+        <button type="button" th:unless="${maven.installed()}" hx-post="/ui/setup/maven/install" hx-target="#maven-setup"
+                hx-swap="outerHTML">Install</button>
+        <button type="button" th:if="${maven.installed()}" class="secondary" hx-post="/ui/setup/maven/uninstall"
+                hx-target="#maven-setup" hx-swap="outerHTML">Uninstall</button>
+        <a class="button secondary" href="/setup/maven/settings.xml" download="localrepo-settings.xml">Download settings.xml</a>
+    </div>
+</section>
+
+<section th:fragment="verify" id="verify" class="card"
+         th:attr="hx-get=${verify.running()} ? '/ui/fragments/verify' : null, hx-trigger=${verify.running()} ? 'every 1s' : null"
+         hx-swap="outerHTML">
+    <h2>Check the cache</h2>
+    <p>Re-hashes every cached file against the checksum recorded when it was downloaded and deletes any that changed,
+        so they are fetched again.</p>
+    <p th:if="${verify.running()}" class="muted">Checking…</p>
+    <p th:if="${!verify.running() and verify.finishedAt() != null}"
+       th:text="|Checked ${verify.checked()} files ${@fmt.ago(verify.finishedAt())}: ${verify.corrupt().size()} corrupt, ${verify.unverifiable()} without a checksum.|"></p>
+    <ul th:unless="${verify.corrupt().isEmpty()}"><li th:each="c : ${verify.corrupt()}"><code th:text="${c}"></code></li></ul>
+    <div class="buttons" th:unless="${verify.running()}">
+        <button type="button" hx-post="/ui/verify" hx-target="#verify" hx-swap="outerHTML">Check now</button>
+    </div>
+</section>
+</body>
+</html>

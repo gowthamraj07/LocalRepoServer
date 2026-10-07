@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${title} + ' · LocalRepoServer'">LocalRepoServer</title>
+    <link rel="stylesheet" href="/css/app.css">
+    <script src="/vendor/htmx-2.0.11.min.js" defer></script>
+</head>
+<body>
+<header th:fragment="header(active)" class="topbar">
+    <a class="brand" href="/">LocalRepoServer</a>
+    <nav>
+        <a href="/" th:classappend="${active == 'dashboard'} ? 'active'">Dashboard</a>
+        <a href="/downloads" th:classappend="${active == 'downloads'} ? 'active'">Downloads</a>
+        <a href="/artifacts" th:classappend="${active == 'artifacts'} ? 'active'">Artifacts</a>
+        <a href="/upstreams" th:classappend="${active == 'upstreams'} ? 'active'">Upstreams</a>
+        <a href="/setup" th:classappend="${active == 'setup'} ? 'active'">Setup</a>
+    </nav>
+    <th:block th:replace="~{fragments/layout :: offline-switch}"></th:block>
+</header>
+
+<button th:fragment="offline-switch" id="offline-switch" type="button" class="switch"
+        th:classappend="${offline} ? 'is-offline'"
+        hx-post="/ui/offline" hx-swap="outerHTML"
+        th:title="${offline} ? 'Never contacting upstreams. Click to go online.' : 'Fetching misses from upstreams. Click to go offline.'">
+    <span class="dot"></span><span th:text="${offline} ? 'Offline' : 'Online'">Online</span>
+</button>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="downloads">
+    <p class="empty" th:if="${downloads.active().isEmpty()}">Nothing downloading.</p>
+    <table th:unless="${downloads.active().isEmpty()}">
+        <thead><tr><th>File</th><th>Progress</th><th class="num">Speed</th></tr></thead>
+        <tbody>
+        <tr th:each="d : ${downloads.active()}">
+            <td class="wrap"><code th:text="${d.path()}">path</code><div class="muted" th:text="${d.upstreamUrl()}"></div></td>
+            <td class="progress-cell">
+                <progress th:if="${d.totalBytes() > 0}" max="100" th:value="${@fmt.percentOf(d.bytes(), d.totalBytes())}"></progress>
+                <progress th:unless="${d.totalBytes() > 0}"></progress>
+                <span class="muted" th:text="${d.totalBytes() > 0} ? |${@fmt.bytes(d.bytes())} of ${@fmt.bytes(d.totalBytes())}| : ${@fmt.bytes(d.bytes())}"></span>
+            </td>
+            <td class="num" th:text="|${@fmt.bytes(d.bytesPerSecond())}/s|">0 B/s</td>
+        </tr>
+        </tbody>
+    </table>
+    <h3>Recent</h3>
+    <p class="empty" th:if="${downloads.recent().isEmpty()}">No downloads yet.</p>
+    <table th:unless="${downloads.recent().isEmpty()}">
+        <thead><tr><th>File</th><th>Result</th><th class="num">Size</th><th>When</th></tr></thead>
+        <tbody>
+        <tr th:each="d : ${downloads.recent().size() > 25 ? downloads.recent().subList(0, 25) : downloads.recent()}">
+            <td class="wrap"><code th:text="${d.path()}">path</code></td>
+            <td><span class="badge" th:classappend="${d.state().name() == 'COMPLETED'} ? 'ok' : (${d.state().name() == 'FAILED'} ? 'bad' : 'muted')"
+                      th:text="${d.state().name() == 'COMPLETED'} ? 'Cached' : (${d.state().name() == 'NOT_FOUND'} ? 'Not found' : 'Failed')">Cached</span></td>
+            <td class="num" th:text="${@fmt.bytes(d.bytes())}">0 B</td>
+            <td class="muted" th:text="${@fmt.ago(d.finishedAt())}">just now</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

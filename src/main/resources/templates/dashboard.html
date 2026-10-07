@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Dashboard')}"></head>
+<body hx-headers='{"X-LocalRepo-Action": "true"}'>
+<header th:replace="~{fragments/layout :: header('dashboard')}"></header>
+<main>
+    <h1>Dashboard</h1>
+    <div hx-get="/ui/fragments/stats" hx-trigger="every 5s" hx-swap="innerHTML">
+        <th:block th:replace="~{fragments/stats :: stats}"></th:block>
+    </div>
+    <h2>Downloads</h2>
+    <div hx-get="/ui/fragments/downloads" hx-trigger="every 2s" hx-swap="innerHTML">
+        <th:block th:replace="~{fragments/downloads :: downloads}"></th:block>
+    </div>
+</main>
+</body>
+</html>

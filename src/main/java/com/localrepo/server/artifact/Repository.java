@@ -56,6 +56,12 @@ public final class Repository {
         return included && excludes.stream().noneMatch(p -> MATCHER.match(p, value));
     }
 
+    /** The include and exclude patterns, for people. */
+    public String filters() {
+        String only = includes.isEmpty() ? "all paths" : "only " + String.join(", ", includes);
+        return excludes.isEmpty() ? only : only + "; never " + String.join(", ", excludes);
+    }
+
     /** The {@code Authorization} header value for requests to this repository, if it needs one. */
     public Optional<String> authorization() {
         return credentials.header();

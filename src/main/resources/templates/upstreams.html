@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Upstreams')}"></head>
+<body hx-headers='{"X-LocalRepo-Action": "true"}'>
+<header th:replace="~{fragments/layout :: header('upstreams')}"></header>
+<main>
+    <h1>Upstreams</h1>
+    <p class="muted">A miss in <code>/cache/</code> asks these in order, skipping those whose filters exclude the path.
+        Configure them under <code>localrepo.upstreams</code>.</p>
+    <table>
+        <thead><tr><th>#</th><th>Name</th><th>URL</th><th>Filters</th><th class="num">Cached files</th><th>Status</th></tr></thead>
+        <tbody>
+        <tr th:each="repository, it : ${repositories}">
+            <td th:text="${it.count}">1</td>
+            <td><code th:text="${repository.name()}">central</code></td>
+            <td class="wrap" th:text="${repository.url()}">https://repo.maven.apache.org/maven2</td>
+            <td class="wrap muted" th:text="${repository.filters()}">all paths</td>
+            <td class="num" th:text="${counts[repository.name()] ?: 0}">0</td>
+            <td th:attr="hx-get=@{/ui/fragments/upstream-status(name=${repository.name()})}" hx-trigger="load">
+                <span class="muted">Checking…</span>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</main>
+</body>
+</html>

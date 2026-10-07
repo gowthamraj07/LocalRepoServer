@@ -87,7 +87,7 @@ untouched and a backup is written next to it before every change.
 -----
 
 ### End points
- * `http://localhost:8082/` lists the cached files
+ * `http://localhost:8082/`: the web UI (dashboard, live downloads, artifact browser, upstreams, setup)
  * `GET /api/artifacts?q=&repository=&page=&size=`: cached files with Maven coordinates, size, hits and last access
  * `DELETE /api/artifacts?repository=&path=`: delete a file or everything below a path (needs `X-LocalRepo-Action`)
  * `POST /api/artifacts/refetch?repository=&path=`: download one file again (needs `X-LocalRepo-Action`)

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Artifacts')}"></head>
+<body hx-headers='{"X-LocalRepo-Action": "true"}'>
+<header th:replace="~{fragments/layout :: header('artifacts')}"></header>
+<main>
+    <h1>Artifacts</h1>
+    <input class="search" type="search" name="q" th:value="${q}" placeholder="Search paths, e.g. androidx/compose or 2.1.0"
+           hx-get="/ui/fragments/artifacts" hx-trigger="input changed delay:300ms, search" hx-target="#artifacts"
+           hx-push-url="false" autofocus>
+    <div id="artifacts">
+        <th:block th:replace="~{fragments/artifacts :: artifacts}"></th:block>
+    </div>
+</main>
+</body>
+</html>

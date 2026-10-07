@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="artifacts">
+    <p class="muted" th:text="|${artifacts.total()} files|">0 files</p>
+    <p class="empty" th:if="${artifacts.items().isEmpty()}">Nothing cached matches.</p>
+    <table th:unless="${artifacts.items().isEmpty()}">
+        <thead><tr><th>Group</th><th>Artifact</th><th>Version</th><th>File</th><th class="num">Size</th>
+            <th class="num">Hits</th><th>Last used</th><th></th></tr></thead>
+        <tbody>
+        <tr th:each="a : ${artifacts.items()}">
+            <td th:text="${@fmt.breakable(a.group())} ?: '—'">group</td>
+            <td th:text="${a.artifact()} ?: '—'">artifact</td>
+            <td th:text="${a.version()} ?: '—'">1.0</td>
+            <td class="wrap"><code th:text="${a.file()}">file</code>
+                <div class="muted" th:text="|${a.repository()}${a.checksumVerified() != null ? ' · ' + a.checksumVerified() + ' verified' : ''}|"></div></td>
+            <td class="num" th:text="${@fmt.bytes(a.size())}">0 B</td>
+            <td class="num" th:text="${a.hits()}">0</td>
+            <td class="muted" th:text="${@fmt.ago(a.lastAccess())}">never</td>
+            <td class="actions">
+                <button type="button" class="small"
+                        th:attr="hx-post=@{/ui/artifacts/refetch(repository=${a.repository()},path=${a.path()})}"
+                        hx-swap="outerHTML">Refetch</button>
+                <button type="button" class="small danger"
+                        th:attr="hx-post=@{/ui/artifacts/delete(repository=${a.repository()},path=${a.path()})}"
+                        hx-target="closest tr" hx-swap="outerHTML" hx-confirm="Delete this file from the cache?">Delete</button>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <div class="pager" th:if="${artifacts.total() > artifacts.size()}">
+        <button type="button" th:if="${artifacts.page() > 0}" hx-target="#artifacts"
+                th:attr="hx-get=@{/ui/fragments/artifacts(q=${q},page=${artifacts.page() - 1})}">Previous</button>
+        <span class="muted" th:text="|Page ${artifacts.page() + 1} of ${(artifacts.total() + artifacts.size() - 1) / artifacts.size()}|"></span>
+        <button type="button" th:if="${(artifacts.page() + 1) * artifacts.size() < artifacts.total()}" hx-target="#artifacts"
+                th:attr="hx-get=@{/ui/fragments/artifacts(q=${q},page=${artifacts.page() + 1})}">Next</button>
+    </div>
+</div>
+</body>
+</html>

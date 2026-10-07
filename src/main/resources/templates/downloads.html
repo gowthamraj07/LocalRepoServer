@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Downloads')}"></head>
+<body hx-headers='{"X-LocalRepo-Action": "true"}'>
+<header th:replace="~{fragments/layout :: header('downloads')}"></header>
+<main>
+    <h1>Downloads</h1>
+    <p class="muted">Files being fetched from upstreams right now, while builds already receive their bytes.</p>
+    <div hx-get="/ui/fragments/downloads" hx-trigger="every 1s" hx-swap="innerHTML">
+        <th:block th:replace="~{fragments/downloads :: downloads}"></th:block>
+    </div>
+</main>
+</body>
+</html>
