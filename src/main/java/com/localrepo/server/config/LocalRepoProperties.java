@@ -8,7 +8,10 @@ import java.time.Duration;
 import java.util.List;
 
 /**
+ * @param home             LocalRepoServer's own directory; config.yml and upstreams.yml there are applied on start
  * @param upstreams        remote repositories; the group tries those whose filters accept a path, in this order
+ * @param extraUpstreams   more upstreams, tried after {@code upstreams}: add private repositories here without
+ *                         repeating the defaults
  * @param cacheDir         root of the on-disk cache, one directory per upstream
  * @param negativeCacheTtl how long a path that every upstream reported missing is answered with 404 without asking
  *                         again; zero disables it
@@ -24,13 +27,15 @@ import java.util.List;
  * @param evictionInterval how often the size limit is enforced
  */
 @ConfigurationProperties("localrepo")
-public record LocalRepoProperties(List<Upstream> upstreams, Path cacheDir, Duration negativeCacheTtl,
+public record LocalRepoProperties(Path home, List<Upstream> upstreams, List<Upstream> extraUpstreams, Path cacheDir, Duration negativeCacheTtl,
                                   Duration connectTimeout, Duration readIdleTimeout, Path gradleUserHome,
                                   Path mavenSettings, Duration metadataTtl, boolean offline, DataSize maxSize,
                                   List<String> pinned, Duration evictionInterval) {
 
     public LocalRepoProperties {
+        home = home == null ? Path.of(System.getProperty("user.home"), ".localrepo") : home;
         upstreams = upstreams == null ? List.of() : List.copyOf(upstreams);
+        extraUpstreams = extraUpstreams == null ? List.of() : List.copyOf(extraUpstreams);
         cacheDir = cacheDir == null ? Path.of(System.getProperty("user.home"), ".localrepo", "cache") : cacheDir;
         negativeCacheTtl = negativeCacheTtl == null ? Duration.ofMinutes(5) : negativeCacheTtl;
         connectTimeout = connectTimeout == null ? Duration.ofSeconds(10) : connectTimeout;
@@ -55,11 +60,18 @@ public record LocalRepoProperties(List<Upstream> upstreams, Path cacheDir, Durat
         public Upstream {
             includes = includes == null ? List.of() : List.copyOf(includes);
             excludes = excludes == null ? List.of() : List.copyOf(excludes);
-            credentials = credentials == null ? new Credentials(null, null, null) : credentials;
+            credentials = credentials == null ? Credentials.NONE : credentials;
         }
     }
 
-    /** Either {@code tokenEnv} (sent as Bearer) or {@code usernameEnv} + {@code passwordEnv} (sent as Basic). */
-    public record Credentials(String usernameEnv, String passwordEnv, String tokenEnv) {
+    /**
+     * Where to find credentials, never the credentials themselves: a token (sent as Bearer) or a username and password
+     * (sent as Basic), each named either as an environment variable ({@code *-env}) or as a property in the Gradle
+     * user home's {@code gradle.properties} ({@code gradle-property-*}), where Gradle users keep them already.
+     */
+    public record Credentials(String usernameEnv, String passwordEnv, String tokenEnv, String gradlePropertyUsername,
+                              String gradlePropertyPassword, String gradlePropertyToken) {
+
+        public static final Credentials NONE = new Credentials(null, null, null, null, null, null);
     }
 }

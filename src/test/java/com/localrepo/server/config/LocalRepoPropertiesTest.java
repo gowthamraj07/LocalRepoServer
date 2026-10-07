@@ -56,6 +56,37 @@ class LocalRepoPropertiesTest {
     }
 
     @Test
+    void addsExtraUpstreamsFromTheUserFilesAfterTheDefaultsWithCredentialsFromGradleProperties(
+            @org.junit.jupiter.api.io.TempDir java.nio.file.Path home) throws Exception {
+        java.nio.file.Files.writeString(home.resolve("upstreams.yml"), """
+                localrepo:
+                  extra-upstreams:
+                    - name: github-mobile-deps
+                      url: https://maven.pkg.github.com/me/mobile-deps
+                      includes: [ "io/github/me/**" ]
+                      credentials: { gradle-property-username: gpr.user, gradle-property-password: gpr.key }
+                """);
+        java.nio.file.Files.writeString(home.resolve("config.yml"), "localrepo:\n  offline: true\n");
+        java.nio.file.Files.createDirectories(home.resolve("gradle"));
+        java.nio.file.Files.writeString(home.resolve("gradle/gradle.properties"), "gpr.user=me\ngpr.key=s3cret\n");
+
+        try (var context = new org.springframework.boot.builder.SpringApplicationBuilder(
+                com.localrepo.server.ServerApplication.class).web(org.springframework.boot.WebApplicationType.NONE)
+                .run("--localrepo.home=" + home, "--localrepo.gradle-user-home=" + home.resolve("gradle"),
+                        "--localrepo.cache-dir=" + home.resolve("cache"))) {
+            List<Repository> repositories = context.getBean(ArtifactService.class).repositories();
+
+            assertEquals(List.of("google", "central", "gradle-plugins", "jetbrains-compose", "jitpack", "github-mobile-deps"),
+                    repositories.stream().map(Repository::name).toList());
+            Repository github = repositories.getLast();
+            assertTrue(github.accepts(ArtifactPath.of("io/github/me/catalog/1/catalog-1.pom")));
+            // base64("me:s3cret")
+            assertEquals("Basic bWU6czNjcmV0", github.authorization().orElseThrow());
+            assertTrue(context.getBean(LocalRepoProperties.class).offline(), "config.yml is applied");
+        }
+    }
+
+    @Test
     void explainsAnUpstreamWithoutAName() {
         new ApplicationContextRunner()
                 .withUserConfiguration(LocalRepoConfiguration.class)

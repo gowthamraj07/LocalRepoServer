@@ -3,6 +3,11 @@ server:
   address: 127.0.0.1
 
 spring:
+  config:
+    # Your own settings; upstreams.yml is written by the Upstreams page of the UI.
+    import:
+      - optional:file:${localrepo.home:${user.home}/.localrepo}/config.yml
+      - optional:file:${localrepo.home:${user.home}/.localrepo}/upstreams.yml
   threads:
     virtual:
       enabled: true
@@ -13,7 +18,8 @@ spring:
       max-request-size: -1
 
 localrepo:
-  cache-dir: ${user.home}/.localrepo/cache
+  home: ${user.home}/.localrepo
+  cache-dir: ${localrepo.home}/cache
   negative-cache-ttl: 5m
   connect-timeout: 10s
   read-idle-timeout: 60s
@@ -29,8 +35,11 @@ localrepo:
   gradle-user-home: ${GRADLE_USER_HOME:${user.home}/.gradle}
   maven-settings: ${user.home}/.m2/settings.xml
   # Tried in this order by /cache/** (the group), filtered by includes/excludes. `--repos=a,b` replaces the list.
-  # Private repositories take credentials from environment variables, e.g.
+  # Add private repositories under `extra-upstreams` (same shape, tried after these) rather than replacing this list.
+  # Credentials are named, never stored: environment variables or properties of the Gradle user home's
+  # gradle.properties, e.g.
   #   credentials: { token-env: GITHUB_TOKEN }  or  { username-env: REPO_USER, password-env: REPO_PASSWORD }
+  #   credentials: { gradle-property-username: gpr.user, gradle-property-password: gpr.key }
   upstreams:
     - name: google
       url: https://dl.google.com/dl/android/maven2

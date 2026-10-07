@@ -17,13 +17,18 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 
+import java.io.IOException;
+import java.io.Reader;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 
 @Configuration
@@ -71,7 +76,7 @@ public class LocalRepoConfiguration {
                                     DownloadCoordinator downloads, OfflineMode offline) {
         List<Repository> repositories = upstreams(properties, environment).stream()
                 .map(upstream -> new Repository(upstream.name(), upstream.url(), upstream.includes(),
-                        upstream.excludes(), credentials(upstream, environment),
+                        upstream.excludes(), credentials(upstream, environment, properties.gradleUserHome()),
                         new ArtifactStore(properties.cacheDir().resolve(upstream.name()), clock)))
                 .toList();
         repositories.forEach(r -> log.info("Upstream {}", r));
@@ -88,16 +93,10 @@ public class LocalRepoConfiguration {
     static List<LocalRepoProperties.Upstream> upstreams(LocalRepoProperties properties, Environment environment) {
         String legacy = environment.getProperty("repos");
         if (legacy == null || legacy.isBlank()) {
-            List<LocalRepoProperties.Upstream> upstreams = properties.upstreams();
-            for (int i = 0; i < upstreams.size(); i++) {
-                LocalRepoProperties.Upstream upstream = upstreams.get(i);
-                if (upstream.name() == null || upstream.url() == null) {
-                    // Spring replaces a list as a whole, so setting only upstreams[i].url drops every other field.
-                    throw new IllegalArgumentException("localrepo.upstreams[" + i + "] needs a name and a url (when "
-                            + "overriding one field of an upstream, give its name and url too)");
-                }
-            }
-            return upstreams;
+            requireNameAndUrl("localrepo.upstreams", properties.upstreams());
+            requireNameAndUrl("localrepo.extra-upstreams", properties.extraUpstreams());
+            return java.util.stream.Stream.concat(properties.upstreams().stream(), properties.extraUpstreams().stream())
+                    .toList();
         }
         Set<String> names = new HashSet<>();
         List<LocalRepoProperties.Upstream> upstreams = new ArrayList<>();
@@ -112,16 +111,58 @@ public class LocalRepoConfiguration {
         return upstreams;
     }
 
-    private static Repository.Credentials credentials(LocalRepoProperties.Upstream upstream, Environment environment) {
-        LocalRepoProperties.Credentials names = upstream.credentials();
-        if (names.tokenEnv() != null) {
-            return Repository.Credentials.bearer(required(upstream, names.tokenEnv(), environment));
+    private static void requireNameAndUrl(String key, List<LocalRepoProperties.Upstream> upstreams) {
+        for (int i = 0; i < upstreams.size(); i++) {
+            if (upstreams.get(i).name() == null || upstreams.get(i).url() == null) {
+                // Spring replaces a list as a whole, so setting only upstreams[i].url drops every other field.
+                throw new IllegalArgumentException(key + "[" + i + "] needs a name and a url (when overriding one "
+                        + "field of an upstream, give its name and url too)");
+            }
         }
-        if (names.usernameEnv() != null || names.passwordEnv() != null) {
-            return Repository.Credentials.basic(required(upstream, names.usernameEnv(), environment),
-                    required(upstream, names.passwordEnv(), environment));
+    }
+
+    private static Repository.Credentials credentials(LocalRepoProperties.Upstream upstream, Environment environment,
+                                                      Path gradleUserHome) {
+        LocalRepoProperties.Credentials names = upstream.credentials();
+        CredentialSource source = new CredentialSource(upstream, environment, gradleUserHome);
+        String token = source.first(names.tokenEnv(), names.gradlePropertyToken());
+        if (names.tokenEnv() != null || names.gradlePropertyToken() != null) {
+            return Repository.Credentials.bearer(token);
+        }
+        if (names.usernameEnv() != null || names.passwordEnv() != null || names.gradlePropertyUsername() != null
+                || names.gradlePropertyPassword() != null) {
+            return Repository.Credentials.basic(source.first(names.usernameEnv(), names.gradlePropertyUsername()),
+                    source.first(names.passwordEnv(), names.gradlePropertyPassword()));
         }
         return Repository.Credentials.NONE;
+    }
+
+    /** Looks a credential up by environment variable or by Gradle property, warning when it is not set. */
+    private record CredentialSource(LocalRepoProperties.Upstream upstream, Environment environment, Path gradleUserHome) {
+
+        String first(String env, String gradleProperty) {
+            if (env != null) {
+                return required(upstream, env, environment);
+            }
+            if (gradleProperty == null) {
+                return null;
+            }
+            Properties properties = new Properties();
+            Path file = gradleUserHome.resolve("gradle.properties");
+            if (Files.isRegularFile(file)) {
+                try (Reader reader = Files.newBufferedReader(file)) {
+                    properties.load(reader);
+                } catch (IOException e) {
+                    log.warn("Could not read {}", file, e);
+                }
+            }
+            String value = properties.getProperty(gradleProperty);
+            if (value == null) {
+                log.warn("Upstream {} expects credentials in {} of {}, which is not set; sending none", upstream.name(),
+                        gradleProperty, file);
+            }
+            return value;
+        }
     }
 
     private static String required(LocalRepoProperties.Upstream upstream, String variable, Environment environment) {

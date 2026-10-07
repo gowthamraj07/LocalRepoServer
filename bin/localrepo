@@ -20,7 +20,8 @@
 #
 # Environment: LOCALREPO_HOME (default ~/.localrepo: server.jar, config.yml, cache/, logs/), LOCALREPO_PORT (8082),
 # LOCALREPO_JAR (default $LOCALREPO_HOME/server.jar), LOCALREPO_ARGS (extra server arguments), JAVA_HOME.
-# Settings in $LOCALREPO_HOME/config.yml (Spring Boot YAML, e.g. localrepo.max-size: 20GB) are applied on start.
+# Settings in $LOCALREPO_HOME/config.yml (Spring Boot YAML, e.g. localrepo.max-size: 20GB) and upstreams added in the
+# UI ($LOCALREPO_HOME/upstreams.yml) are applied on start.
 set -euo pipefail
 
 home=${LOCALREPO_HOME:-$HOME/.localrepo}
@@ -35,7 +36,7 @@ plist="$HOME/Library/LaunchAgents/$label.plist"
 die() { echo "localrepo: $*" >&2; exit 1; }
 
 usage() {
-    sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 java_cmd() {
@@ -63,10 +64,8 @@ healthy() {
 
 server_command() {
     [[ -f "$jar" ]] || die "no server jar at $jar (run install.sh, or set LOCALREPO_JAR)"
-    local args=("$(java_cmd)" -jar "$jar" "--server.port=$port" "--localrepo.cache-dir=$home/cache")
-    if [[ -f "$home/config.yml" ]]; then
-        args+=("--spring.config.additional-location=optional:file:$home/config.yml")
-    fi
+    # The server reads $home/config.yml and $home/upstreams.yml itself.
+    local args=("$(java_cmd)" -jar "$jar" "--server.port=$port" "--localrepo.home=$home")
     # shellcheck disable=SC2206 # LOCALREPO_ARGS is deliberately split on spaces
     args+=(${LOCALREPO_ARGS:-})
     printf '%s\n' "${args[@]}"
