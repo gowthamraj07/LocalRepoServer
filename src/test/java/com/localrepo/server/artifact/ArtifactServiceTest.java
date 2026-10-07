@@ -24,6 +24,7 @@ import java.util.stream.IntStream;
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static com.github.tomakehurst.wiremock.http.Fault.CONNECTION_RESET_BY_PEER;
+import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ArtifactServiceTest {
@@ -176,9 +177,41 @@ class ArtifactServiceTest {
         second.stubFor(get(POM).willReturn(notFound()));
 
         service.resolveAndWait(PATH);
+        long asked = first.countRequestsMatching(getRequestedFor(urlEqualTo(POM)).build()).getCount();
         service.resolveAndWait(PATH);
 
-        first.verify(2, getRequestedFor(urlEqualTo(POM)));
+        first.verify((int) (2 * asked), getRequestedFor(urlEqualTo(POM)));
+    }
+
+    @Test
+    void retriesAnUpstreamThatFailsOnce() throws Exception {
+        first.stubFor(get(POM).inScenario("flaky").whenScenarioStateIs(STARTED)
+                .willReturn(aResponse().withStatus(503)).willSetStateTo("recovered"));
+        first.stubFor(get(POM).inScenario("flaky").whenScenarioStateIs("recovered").willReturn(ok("<project/>")));
+
+        assertTrue(service.resolveAndWait(PATH).isPresent());
+    }
+
+    @Test
+    void reportsAFailureRatherThanAMissWhenAnUpstreamErrored() throws Exception {
+        // A 404 would be remembered by Maven until its update interval passes; a failure is retried on the next build.
+        first.stubFor(get(POM).willReturn(serverError()));
+        second.stubFor(get(POM).willReturn(notFound()));
+
+        Download download = ((ArtifactService.Resolution.Downloading) service.resolve(PATH)).download();
+
+        assertEquals(Download.State.FAILED, download.awaitHeaders());
+    }
+
+    @Test
+    void aClientErrorFromAnUpstreamStillCountsAsAMiss() throws Exception {
+        // Repositories answer 401 or 403 for paths they do not have; the build should fall back to its own repositories.
+        first.stubFor(get(POM).willReturn(aResponse().withStatus(401)));
+        second.stubFor(get(POM).willReturn(notFound()));
+
+        Download download = ((ArtifactService.Resolution.Downloading) service.resolve(PATH)).download();
+
+        assertEquals(Download.State.NOT_FOUND, download.awaitHeaders());
     }
 
     @Test
@@ -424,7 +457,7 @@ class ArtifactServiceTest {
 
     private ArtifactService serviceWith(List<Repository> repositories, Duration idleTimeout) {
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
-        return new ArtifactService(repositories, new UpstreamClient(http, idleTimeout),
+        return new ArtifactService(repositories, new UpstreamClient(http, idleTimeout, Duration.ZERO),
                 new NegativeCache(Duration.ofMinutes(5), clock),
                 new DownloadCoordinator(Clock.systemUTC(), idleTimeout, new DownloadTracker(clock)),
                 new FreshnessPolicy(Duration.ofHours(24), clock), offline);

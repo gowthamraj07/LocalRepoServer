@@ -42,7 +42,7 @@ class CacheEvictorTest {
         Repository repository = new Repository("central", "http://127.0.0.1:9", List.of(), List.of(),
                 Repository.Credentials.NONE, central);
         service = new ArtifactService(List.of(repository),
-                new UpstreamClient(HttpClient.newHttpClient(), Duration.ofSeconds(1)),
+                new UpstreamClient(HttpClient.newHttpClient(), Duration.ofSeconds(1), Duration.ZERO),
                 new NegativeCache(Duration.ZERO, clock),
                 new DownloadCoordinator(clock, Duration.ofSeconds(1), new DownloadTracker(clock)),
                 new FreshnessPolicy(Duration.ofHours(24), clock), new OfflineMode(true));

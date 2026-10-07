@@ -189,26 +189,30 @@ public class ArtifactService {
             return;
         }
 
-        boolean everyUpstreamSaidNotFound = true;
+        IOException error = null;
         for (Repository repository : candidates) {
             try (UpstreamResponse response = upstreamClient.get(repository, path)) {
                 if (response.isOk()) {
                     transfer(repository, download, response);
                     return;
                 }
-                if (response.status() != 404 && response.status() != 410) {
-                    everyUpstreamSaidNotFound = false;
+                if (response.isServerError()) {
+                    error = new IOException(repository.name() + " answered " + response.status());
                 }
                 log.debug("{} answered {} for {}", repository.name(), response.status(), path.value());
             } catch (IOException e) {
-                everyUpstreamSaidNotFound = false;
+                error = e;
                 log.debug("Could not fetch {} from {}", path.value(), repository.name(), e);
             }
         }
 
-        if (everyUpstreamSaidNotFound) {
-            negativeCache.remember(scope, path);
+        if (error != null) {
+            // Not a miss: a build told "not found" may remember that, while a failure is asked again next time.
+            log.warn("Could not fetch {} in {}: {}", path.value(), scope, error.toString());
+            download.failed(error);
+            return;
         }
+        negativeCache.remember(scope, path);
         log.info("{} not found in {}", path.value(), scope);
         download.notFound();
     }

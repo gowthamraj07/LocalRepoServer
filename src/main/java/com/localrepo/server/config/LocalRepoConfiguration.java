@@ -24,6 +24,7 @@ import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -47,7 +48,7 @@ public class LocalRepoConfiguration {
         return new UpstreamClient(HttpClient.newBuilder()
                 .connectTimeout(properties.connectTimeout())
                 .followRedirects(HttpClient.Redirect.NORMAL)
-                .build(), properties.readIdleTimeout());
+                .build(), properties.readIdleTimeout(), Duration.ofSeconds(1));
     }
 
     @Bean

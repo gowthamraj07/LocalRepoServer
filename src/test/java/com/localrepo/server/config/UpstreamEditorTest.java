@@ -39,7 +39,7 @@ class UpstreamEditorTest {
                 null, null, null, null, false, null, null, null);
         factory = new RepositoryFactory(properties, new MockEnvironment(), clock);
         service = new ArtifactService(List.of(factory.create(upstream("central", "https://repo.example/maven2"))),
-                new UpstreamClient(HttpClient.newHttpClient(), Duration.ofSeconds(1)), new NegativeCache(Duration.ZERO, clock),
+                new UpstreamClient(HttpClient.newHttpClient(), Duration.ofSeconds(1), Duration.ZERO), new NegativeCache(Duration.ZERO, clock),
                 new DownloadCoordinator(clock, Duration.ofSeconds(1), new DownloadTracker(clock)),
                 new FreshnessPolicy(Duration.ofHours(1), clock), new OfflineMode(false));
         editor = new UpstreamEditor(home.resolve("upstreams.yml"), List.of(), service, factory);

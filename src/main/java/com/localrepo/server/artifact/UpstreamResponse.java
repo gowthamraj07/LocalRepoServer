@@ -14,6 +14,11 @@ public record UpstreamResponse(String url, int status, HttpHeaders headers, Inpu
         return status == 304;
     }
 
+    /** The upstream could not answer right now: a server error, or it asks us to slow down. */
+    public boolean isServerError() {
+        return status >= 500 || status == 429;
+    }
+
     public Origin origin() {
         return new Origin(url, headers.firstValue("ETag").orElse(null),
                 headers.firstValue("Last-Modified").orElse(null));
