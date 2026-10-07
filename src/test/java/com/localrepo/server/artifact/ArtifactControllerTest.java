@@ -297,18 +297,6 @@ class ArtifactControllerTest {
     }
 
     @Test
-    void listsCachedArtifactsWithTheirRepository() throws Exception {
-        fetch("junit/junit/4.13.2/junit-4.13.2.pom");
-        waitForBackgroundDownloads();
-
-        HttpResponse<String> list = http.send(HttpRequest.newBuilder(URI.create(base() + "/list")).build(),
-                HttpResponse.BodyHandlers.ofString());
-
-        assertTrue(list.body().contains("\"repository\":\"mock\""), list.body());
-        assertTrue(list.body().contains("\"path\":\"junit/junit/4.13.2/junit-4.13.2.pom\""), list.body());
-    }
-
-    @Test
     void marksMetadataServedStaleBecauseTheUpstreamIsDown() throws Exception {
         String metadata = "/maven2/junit/junit/maven-metadata.xml";
         upstream.stubFor(get(metadata).willReturn(ok("<metadata/>")));

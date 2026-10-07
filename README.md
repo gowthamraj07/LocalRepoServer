@@ -87,8 +87,15 @@ untouched and a backup is written next to it before every change.
 -----
 
 ### End points
- * `http://localhost:8082/` will display all the cached files
- * `http://localhost:8082/list` returns the cached files as JSON
+ * `http://localhost:8082/` lists the cached files
+ * `GET /api/artifacts?q=&repository=&page=&size=`: cached files with Maven coordinates, size, hits and last access
+ * `DELETE /api/artifacts?repository=&path=`: delete a file or everything below a path (needs `X-LocalRepo-Action`)
+ * `POST /api/artifacts/refetch?repository=&path=`: download one file again (needs `X-LocalRepo-Action`)
+ * `GET /api/stats`: hits, misses, hit rate, bytes served from the cache and downloaded, disk use
+ * `GET /api/downloads`: active and recent downloads with progress
+ * `GET /api/events`: server-sent events (`download-started`, `download-progress`, `download-completed`,
+   `download-failed`, `cache-hit`)
+ * `GET /actuator/health`: liveness, used by the Gradle init script
 -----
 
 ### How to ship the cache

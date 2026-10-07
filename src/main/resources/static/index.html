@@ -14,10 +14,10 @@
     <script>
         $(document).ready(function() {
             $.ajax({
-                url:'/list',
+                url:'/api/artifacts?size=10000',
                 dataType: 'json',
                 method:'GET',
-                success: function(response) { 
+                success: function(page) { var response = page.items;
                     var responseLength = response.length;
                     var numberOfRowsToBeDisplayed = responseLength > 50 ? 25 : 50;
                     var numberOfRowsCanBeDisplayed = [];

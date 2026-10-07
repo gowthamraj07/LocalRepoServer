@@ -1,6 +1,7 @@
 package com.localrepo.server.artifact;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
@@ -15,6 +16,19 @@ public class DownloadTracker {
     private final Clock clock;
     private final Set<Download> active = ConcurrentHashMap.newKeySet();
     private final Deque<Download> recent = new ArrayDeque<>();
+    private final List<Listener> listeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public interface Listener {
+        default void started(Download download) {
+        }
+
+        default void finished(Download download) {
+        }
+    }
+
+    public void addListener(Listener listener) {
+        listeners.add(listener);
+    }
 
     public DownloadTracker(Clock clock) {
         this.clock = clock;
@@ -22,6 +36,7 @@ public class DownloadTracker {
 
     void started(Download download) {
         active.add(download);
+        listeners.forEach(l -> l.started(download));
     }
 
     void finished(Download download) {
@@ -32,6 +47,11 @@ public class DownloadTracker {
                 recent.removeLast();
             }
         }
+        listeners.forEach(l -> l.finished(download));
+    }
+
+    public Instant now() {
+        return clock.instant();
     }
 
     public List<DownloadProgress> active() {

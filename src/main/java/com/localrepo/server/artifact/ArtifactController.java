@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.time.Instant;
 import java.util.List;
 
 @RestController
@@ -25,9 +24,11 @@ public class ArtifactController {
     private static final Logger log = LoggerFactory.getLogger(ArtifactController.class);
 
     private final ArtifactService service;
+    private final List<RequestListener> listeners;
 
-    public ArtifactController(ArtifactService service) {
+    public ArtifactController(ArtifactService service, List<RequestListener> listeners) {
         this.service = service;
+        this.listeners = listeners;
     }
 
     /**
@@ -54,10 +55,15 @@ public class ArtifactController {
                                       HttpServletRequest request, HttpServletResponse response) throws IOException {
         boolean head = "HEAD".equals(request.getMethod());
         return switch (resolution) {
-            case ArtifactService.Resolution.Cached cached -> cachedResponse(path, cached.artifact(), cached.stale());
+            case ArtifactService.Resolution.Cached cached -> {
+                listeners.forEach(l -> l.hit(cached.artifact()));
+                yield cachedResponse(path, cached.artifact(), cached.stale());
+            }
             case ArtifactService.Resolution.Missing missing -> ResponseEntity.notFound().build();
-            case ArtifactService.Resolution.Downloading downloading ->
-                    streamingResponse(path, downloading.download(), head, response);
+            case ArtifactService.Resolution.Downloading downloading -> {
+                listeners.forEach(l -> l.miss(path));
+                yield streamingResponse(path, downloading.download(), head, response);
+            }
         };
     }
 
@@ -144,19 +150,9 @@ public class ArtifactController {
         }
     }
 
-    @GetMapping("/list")
-    public List<ArtifactSummary> list() {
-        return service.list().entrySet().stream()
-                .flatMap(entry -> entry.getValue().stream().map(a -> new ArtifactSummary(entry.getKey().name(),
-                        a.path().value(), a.meta().upstreamUrl(), a.meta().size(), a.meta().fetchedAt())))
-                .toList();
-    }
-
     @ExceptionHandler(InvalidArtifactPathException.class)
     ResponseEntity<String> invalidPath(InvalidArtifactPathException e) {
         return ResponseEntity.badRequest().body(e.getMessage());
     }
 
-    public record ArtifactSummary(String repository, String path, String upstreamUrl, long size, Instant fetchedAt) {
-    }
 }

@@ -35,6 +35,7 @@ public final class Download {
 
     private volatile State state = State.CONNECTING;
     private volatile long bytesWritten;
+    private volatile long transferred;
     private volatile Instant lastActivity;
     private volatile Instant finishedAt;
     private volatile boolean stale;
@@ -65,7 +66,10 @@ public final class Download {
     }
 
     void progress(long bytesWritten) {
-        update(() -> this.bytesWritten = bytesWritten);
+        update(() -> {
+            this.bytesWritten = bytesWritten;
+            this.transferred = bytesWritten;
+        });
     }
 
     /** Runs {@code commit} under the lock so no reader can open the part file after it has been moved. */
@@ -161,6 +165,11 @@ public final class Download {
     /** Whether the result is an old copy served because the upstream could not be reached. */
     public boolean isStale() {
         return stale;
+    }
+
+    /** Bytes actually received from an upstream, as opposed to served from an existing copy. */
+    public long transferred() {
+        return transferred;
     }
 
     public long bytesWritten() {

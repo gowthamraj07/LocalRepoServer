@@ -7,7 +7,7 @@ import java.time.Instant;
 public record DownloadProgress(String path, String upstreamUrl, Download.State state, long bytes, long totalBytes,
                                Instant startedAt, Instant finishedAt, long bytesPerSecond) {
 
-    static DownloadProgress of(Download download, Instant now) {
+    public static DownloadProgress of(Download download, Instant now) {
         Origin origin = download.origin();
         Instant end = download.finishedAt().orElse(now);
         long millis = Math.max(1, Duration.between(download.startedAt(), end).toMillis());
