@@ -38,7 +38,12 @@ public class DownloadCoordinator implements AutoCloseable {
     /** Returns the download already running under {@code key}, or starts {@code fetch} in a new one. */
     public Download join(String key, ArtifactPath path, Consumer<Download> fetch) {
         boolean[] created = {false};
-        Download download = inFlight.computeIfAbsent(key, k -> {
+        // A finished download stays in the map until its task returns; never hand that out, or a request would get a
+        // result that was decided before it arrived (e.g. skip revalidating metadata that just went stale).
+        Download download = inFlight.compute(key, (k, existing) -> {
+            if (existing != null && !existing.isFinished()) {
+                return existing;
+            }
             created[0] = true;
             return new Download(path, clock);
         });
