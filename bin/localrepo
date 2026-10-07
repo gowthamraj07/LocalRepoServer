@@ -118,7 +118,7 @@ status() {
         return 3
     fi
     echo "LocalRepoServer is running at $base"
-    curl -fs "$base/api/stats" | sed -e 's/[{}]//g' -e 's/,"/\n  /g' -e 's/^"/  /' -e 's/":/: /'
+    curl -fs "$base/api/stats" | sed -e 's/[{}]//g' -e 's/,"/\n  /g' -e 's/^"/  /' -e 's/":/: /g'
     echo
     printf '  gradle: '; curl -fs "$base/setup/gradle"; echo
     printf '  maven:  '; curl -fs "$base/setup/maven"; echo

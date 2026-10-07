@@ -35,7 +35,7 @@ check "version reads the jar manifest" bash -c "'$cli' version | grep -q '^Local
 check "status says it is not running" bash -c "'$cli' status; test \$? -eq 3"
 check "start brings the server up" "$cli" start
 check "start again is harmless" bash -c "'$cli' start | grep -q 'already running'"
-check "status reports stats" bash -c "'$cli' status | grep -q 'hitRate'"
+check "status reports stats" bash -c "'$cli' status | grep -q '^  hitRate: '"
 check "install-gradle writes the init script" bash -c "'$cli' install-gradle && test -f '$GRADLE_USER_HOME/init.d/localrepo.init.gradle'"
 check "uninstall-gradle removes it" bash -c "'$cli' uninstall-gradle && test ! -f '$GRADLE_USER_HOME/init.d/localrepo.init.gradle'"
 check "install-maven writes the mirror" bash -c "'$cli' install-maven && grep -q '<mirrorOf>\*</mirrorOf>' '$work/m2/settings.xml'"
