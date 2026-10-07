@@ -42,6 +42,17 @@ class MavenSettingsEditorTest {
     }
 
     @Test
+    void reinstallsIntoSettingsItCreatedItself() {
+        String created = editor.install(null, "http://127.0.0.1:1111/cache");
+
+        String reinstalled = editor.install(created, URL);
+
+        assertTrue(editor.isInstalled(reinstalled, URL));
+        assertEquals(1, reinstalled.split("<id>localrepo</id>", -1).length - 1);
+        assertNull(editor.uninstall(reinstalled));
+    }
+
+    @Test
     void addsTheMirrorFirstAndKeepsEverythingElse() {
         String settings = editor.install(WITH_MIRRORS, URL);
 

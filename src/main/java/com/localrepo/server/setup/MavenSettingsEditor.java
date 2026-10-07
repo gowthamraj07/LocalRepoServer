@@ -34,7 +34,7 @@ public class MavenSettingsEditor {
 
     /** Returns the settings with the mirror to {@code url} installed; {@code existing} may be null. */
     public String install(String existing, String url) {
-        if (existing == null || existing.isBlank()) {
+        if (existing == null || existing.isBlank() || existing.contains(CREATED)) {
             return """
                     <?xml version="1.0" encoding="UTF-8"?>
                     %s
