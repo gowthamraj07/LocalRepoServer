@@ -6,6 +6,11 @@ spring:
   threads:
     virtual:
       enabled: true
+  servlet:
+    multipart:
+      # Cache bundles uploaded from the UI can be large.
+      max-file-size: -1
+      max-request-size: -1
 
 localrepo:
   cache-dir: ${user.home}/.localrepo/cache

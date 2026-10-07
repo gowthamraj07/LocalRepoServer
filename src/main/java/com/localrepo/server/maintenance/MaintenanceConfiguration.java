@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Clock;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -21,6 +22,16 @@ public class MaintenanceConfiguration {
     CacheEvictor cacheEvictor(ArtifactService service, AccessStats stats, LocalRepoProperties properties) {
         long maxBytes = properties.maxSize() == null ? 0 : properties.maxSize().toBytes();
         return new CacheEvictor(service, stats, maxBytes, properties.pinned());
+    }
+
+    @Bean
+    CachePurger cachePurger(ArtifactService service, AccessStats stats, Clock clock) {
+        return new CachePurger(service, stats, clock);
+    }
+
+    @Bean
+    CacheBundles cacheBundles(ArtifactService service, AccessStats stats, Clock clock) {
+        return new CacheBundles(service, stats, clock);
     }
 
     /** Enforces the size limit periodically, when there is one. */
