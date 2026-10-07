@@ -35,13 +35,36 @@ public class MaintenanceController {
     private final CacheEvictor evictor;
     private final CachePurger purger;
     private final CacheBundles bundles;
+    private final Prefetcher prefetcher;
     private final Clock clock;
 
-    public MaintenanceController(CacheEvictor evictor, CachePurger purger, CacheBundles bundles, Clock clock) {
+    public MaintenanceController(CacheEvictor evictor, CachePurger purger, CacheBundles bundles, Prefetcher prefetcher,
+                                 Clock clock) {
         this.evictor = evictor;
         this.purger = purger;
         this.bundles = bundles;
+        this.prefetcher = prefetcher;
         this.clock = clock;
+    }
+
+    /**
+     * Downloads ahead of time: the body is Gradle's verification-metadata.xml, or lines of
+     * {@code group:artifact:version[:classifier][@ext]} coordinates and repository paths. Poll GET for progress.
+     */
+    @PostMapping("/api/prefetch")
+    public Prefetcher.Report prefetch(@RequestHeader(value = SetupController.ACTION_HEADER, required = false) String action,
+                                      @org.springframework.web.bind.annotation.RequestBody String body) {
+        requireAction(action);
+        try {
+            return prefetcher.start(body);
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
+        }
+    }
+
+    @GetMapping("/api/prefetch")
+    public Prefetcher.Report prefetchReport() {
+        return prefetcher.report();
     }
 
     @PostMapping("/api/evict")

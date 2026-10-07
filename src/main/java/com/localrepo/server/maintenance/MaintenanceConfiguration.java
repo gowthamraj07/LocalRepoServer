@@ -34,6 +34,11 @@ public class MaintenanceConfiguration {
         return new CacheBundles(service, stats, clock);
     }
 
+    @Bean
+    Prefetcher prefetcher(ArtifactService service, Clock clock) {
+        return new Prefetcher(service, clock);
+    }
+
     /** Enforces the size limit periodically, when there is one. */
     @Bean(destroyMethod = "shutdownNow")
     ScheduledExecutorService maintenanceScheduler(CacheEvictor evictor, LocalRepoProperties properties) {

@@ -153,6 +153,28 @@ class MaintenanceControllerTest {
                 .build(), HttpResponse.BodyHandlers.discarding()).statusCode());
     }
 
+    @Test
+    void prefetchesCoordinatesInTheBackground() throws Exception {
+        assertEquals(403, http.send(HttpRequest.newBuilder(uri("/api/prefetch"))
+                .POST(HttpRequest.BodyPublishers.ofString("junit:junit:4.13.2")).build(),
+                HttpResponse.BodyHandlers.discarding()).statusCode());
+
+        HttpResponse<String> started = post("/api/prefetch", "junit:junit:4.13.2");
+        assertEquals(200, started.statusCode(), started.body());
+        JsonNode report;
+        do {
+            Thread.sleep(20);
+            report = json.readTree(http.send(HttpRequest.newBuilder(uri("/api/prefetch")).build(),
+                    HttpResponse.BodyHandlers.ofString()).body());
+        } while (report.get("running").asBoolean());
+
+        assertEquals(3, report.get("total").asInt());
+        assertEquals(2, report.get("fetched").asInt(), report.toString());
+        assertEquals(1, report.get("missing").asInt(), "no Gradle module metadata upstream");
+        assertTrue(Files.exists(cacheDir.resolve("mock").resolve(JAR)));
+        assertEquals(400, post("/api/prefetch", "only:two").statusCode());
+    }
+
     private void fetch(String path) throws Exception {
         assertEquals(200, http.send(HttpRequest.newBuilder(uri("/cache/" + path)).build(),
                 HttpResponse.BodyHandlers.discarding()).statusCode());
