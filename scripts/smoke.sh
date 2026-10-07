@@ -13,7 +13,8 @@
 # throwaway Gradle home (mode 600) so private repository credentials keep working.
 #
 # Environment: WORK (default $TMPDIR/localrepo-smoke/<project>), PORT (default 18090), LOCALREPO_JAR (default the
-# newest target/server-*.jar), KEEP_CACHE=1 to reuse the server cache from an earlier run.
+# newest target/server-*.jar), KEEP_CACHE=1 to reuse the server cache from an earlier run, SERVER_ARGS for extra
+# space-separated server arguments in both phases (e.g. --spring.config.additional-location=file:upstreams.yml).
 set -euo pipefail
 
 maven=false
@@ -22,7 +23,7 @@ if [[ "${1:-}" == "--maven" ]]; then
     shift
 fi
 if [[ $# -lt 2 ]]; then
-    sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'
     exit 2
 fi
 project=$(cd "$1" && pwd)
@@ -54,7 +55,7 @@ start_server() { # extra server arguments...
     stop_server
     java -jar "$jar" --server.port="$port" --localrepo.cache-dir="$work/cache" \
         --localrepo.gradle-user-home="$work/gradle-home" --localrepo.maven-settings="$work/settings.xml" \
-        "$@" > "$work/server-$phase.log" 2>&1 &
+        ${SERVER_ARGS:-} "$@" > "$work/server-$phase.log" 2>&1 &
     server_pid=$!
     for _ in $(seq 1 60); do
         curl -fs "$base/actuator/health" > /dev/null 2>&1 && return
