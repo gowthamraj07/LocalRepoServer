@@ -67,6 +67,13 @@ public class AccessStats implements AutoCloseable {
         dirty.set(true);
     }
 
+    /** A file was just downloaded: it counts as used now, without counting as a hit. */
+    public void touch(Path file) {
+        files.merge(key(file), new FileAccess(0, clock.instant()),
+                (old, now) -> new FileAccess(old.hits(), now.lastAccess()));
+        dirty.set(true);
+    }
+
     /** A request had to go to an upstream. */
     public void miss() {
         misses.incrementAndGet();

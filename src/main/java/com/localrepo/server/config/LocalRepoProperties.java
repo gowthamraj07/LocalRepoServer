@@ -1,6 +1,7 @@
 package com.localrepo.server.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.util.unit.DataSize;
 
 import java.nio.file.Path;
 import java.time.Duration;
@@ -18,11 +19,15 @@ import java.util.List;
  * @param mavenSettings    the user's Maven settings file that the mirror is installed into
  * @param metadataTtl      how long version listings and snapshots are served before checking the upstream again
  * @param offline          start in offline mode: never contact an upstream
+ * @param maxSize          size the cache is kept under by deleting the least recently used files; unset means no limit
+ * @param pinned           Ant-style path patterns that are never evicted
+ * @param evictionInterval how often the size limit is enforced
  */
 @ConfigurationProperties("localrepo")
 public record LocalRepoProperties(List<Upstream> upstreams, Path cacheDir, Duration negativeCacheTtl,
                                   Duration connectTimeout, Duration readIdleTimeout, Path gradleUserHome,
-                                  Path mavenSettings, Duration metadataTtl, boolean offline) {
+                                  Path mavenSettings, Duration metadataTtl, boolean offline, DataSize maxSize,
+                                  List<String> pinned, Duration evictionInterval) {
 
     public LocalRepoProperties {
         upstreams = upstreams == null ? List.of() : List.copyOf(upstreams);
@@ -34,6 +39,8 @@ public record LocalRepoProperties(List<Upstream> upstreams, Path cacheDir, Durat
         mavenSettings = mavenSettings == null ? Path.of(System.getProperty("user.home"), ".m2", "settings.xml")
                 : mavenSettings;
         metadataTtl = metadataTtl == null ? Duration.ofHours(24) : metadataTtl;
+        pinned = pinned == null ? List.of() : List.copyOf(pinned);
+        evictionInterval = evictionInterval == null ? Duration.ofMinutes(10) : evictionInterval;
     }
 
     /**

@@ -23,6 +23,11 @@ public class ApiConfiguration {
             public void finished(Download download) {
                 if (download.state() == Download.State.COMPLETED) {
                     stats.downloaded(download.transferred());
+                    try {
+                        download.awaitResult().ifPresent(artifact -> stats.touch(artifact.file()));
+                    } catch (java.io.IOException ignored) {
+                        // completed, so there is nothing to wait for
+                    }
                 }
             }
         });

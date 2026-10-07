@@ -16,6 +16,11 @@ localrepo:
   metadata-ttl: 24h
   # Never contact an upstream; also switchable at runtime with POST /api/offline.
   offline: false
+  # Keep the cache under this size by deleting the least recently used files (e.g. 20GB). Unset: no limit.
+  # max-size: 20GB
+  # Paths never deleted by the size limit, e.g. [ "androidx/**" ].
+  pinned: [ ]
+  eviction-interval: 10m
   gradle-user-home: ${GRADLE_USER_HOME:${user.home}/.gradle}
   maven-settings: ${user.home}/.m2/settings.xml
   # Tried in this order by /cache/** (the group), filtered by includes/excludes. `--repos=a,b` replaces the list.
