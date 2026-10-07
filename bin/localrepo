@@ -1,0 +1,223 @@
+#!/usr/bin/env bash
+# localrepo: run and manage LocalRepoServer, the local caching proxy for Maven and Gradle repositories.
+#
+#   localrepo start [--foreground]    start the server (in the background unless --foreground)
+#   localrepo stop                    stop it
+#   localrepo restart                 stop, then start
+#   localrepo status                  is it running, and how is the cache doing
+#   localrepo logs                    follow the server log
+#   localrepo open                    open the web UI
+#   localrepo install-gradle          route every Gradle build on this machine through the server
+#   localrepo uninstall-gradle
+#   localrepo install-maven           add the server as a mirror in ~/.m2/settings.xml
+#   localrepo uninstall-maven
+#   localrepo offline on|off          never contact upstreams / back to normal
+#   localrepo export [file] [window]  zip the cache (or what was used within e.g. 1h) for another machine
+#   localrepo import <file>           load such a zip
+#   localrepo service install         start at login (macOS launchd)
+#   localrepo service uninstall
+#   localrepo version
+#
+# Environment: LOCALREPO_HOME (default ~/.localrepo: server.jar, config.yml, cache/, logs/), LOCALREPO_PORT (8082),
+# LOCALREPO_JAR (default $LOCALREPO_HOME/server.jar), LOCALREPO_ARGS (extra server arguments), JAVA_HOME.
+# Settings in $LOCALREPO_HOME/config.yml (Spring Boot YAML, e.g. localrepo.max-size: 20GB) are applied on start.
+set -euo pipefail
+
+home=${LOCALREPO_HOME:-$HOME/.localrepo}
+port=${LOCALREPO_PORT:-8082}
+jar=${LOCALREPO_JAR:-$home/server.jar}
+base="http://127.0.0.1:$port"
+pid_file="$home/server.pid"
+log_file="$home/logs/server.log"
+label=com.localrepo.server
+plist="$HOME/Library/LaunchAgents/$label.plist"
+
+die() { echo "localrepo: $*" >&2; exit 1; }
+
+usage() {
+    sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+java_cmd() {
+    if [[ -n "${JAVA_HOME:-}" && -x "$JAVA_HOME/bin/java" ]]; then
+        echo "$JAVA_HOME/bin/java"
+    elif [[ -x /usr/libexec/java_home ]] && /usr/libexec/java_home -v 21+ > /dev/null 2>&1; then
+        echo "$(/usr/libexec/java_home -v 21+)/bin/java"
+    elif command -v java > /dev/null; then
+        command -v java
+    else
+        die "Java 21 or newer is needed; set JAVA_HOME"
+    fi
+}
+
+running_pid() {
+    [[ -f "$pid_file" ]] || return 1
+    local pid
+    pid=$(cat "$pid_file")
+    kill -0 "$pid" 2> /dev/null && echo "$pid"
+}
+
+healthy() {
+    curl -fs --max-time 2 "$base/actuator/health" > /dev/null 2>&1
+}
+
+server_command() {
+    [[ -f "$jar" ]] || die "no server jar at $jar (run install.sh, or set LOCALREPO_JAR)"
+    local args=("$(java_cmd)" -jar "$jar" "--server.port=$port" "--localrepo.cache-dir=$home/cache")
+    if [[ -f "$home/config.yml" ]]; then
+        args+=("--spring.config.additional-location=optional:file:$home/config.yml")
+    fi
+    # shellcheck disable=SC2206 # LOCALREPO_ARGS is deliberately split on spaces
+    args+=(${LOCALREPO_ARGS:-})
+    printf '%s\n' "${args[@]}"
+}
+
+start() {
+    mkdir -p "$home/logs" "$home/cache"
+    local command=()
+    while IFS= read -r arg; do command+=("$arg"); done < <(server_command)
+    if [[ "${1:-}" == "--foreground" ]]; then
+        exec "${command[@]}"
+    fi
+    if pid=$(running_pid); then
+        echo "LocalRepoServer is already running (pid $pid) at $base"
+        return
+    fi
+    nohup "${command[@]}" >> "$log_file" 2>&1 &
+    echo $! > "$pid_file"
+    for _ in $(seq 1 60); do
+        if healthy; then
+            echo "LocalRepoServer is running at $base (pid $(cat "$pid_file"), log $log_file)"
+            return
+        fi
+        kill -0 "$(cat "$pid_file")" 2> /dev/null || die "the server exited; see $log_file"
+        sleep 1
+    done
+    die "the server did not become healthy within 60s; see $log_file"
+}
+
+stop() {
+    if pid=$(running_pid); then
+        kill "$pid"
+        for _ in $(seq 1 30); do
+            kill -0 "$pid" 2> /dev/null || break
+            sleep 1
+        done
+        rm -f "$pid_file"
+        echo "Stopped LocalRepoServer"
+    elif healthy; then
+        echo "LocalRepoServer at $base was not started by this command (launchd service?); not stopping it"
+    else
+        rm -f "$pid_file"
+        echo "LocalRepoServer is not running"
+    fi
+}
+
+status() {
+    if ! healthy; then
+        echo "LocalRepoServer is not running at $base"
+        return 3
+    fi
+    echo "LocalRepoServer is running at $base"
+    curl -fs "$base/api/stats" | sed -e 's/[{}]//g' -e 's/,"/\n  /g' -e 's/^"/  /' -e 's/":/: /'
+    echo
+    printf '  gradle: '; curl -fs "$base/setup/gradle"; echo
+    printf '  maven:  '; curl -fs "$base/setup/maven"; echo
+    printf '  offline: '; curl -fs "$base/api/offline"; echo
+}
+
+require_running() {
+    healthy || die "LocalRepoServer is not running at $base (localrepo start)"
+}
+
+action() { # method path [curl args...]
+    require_running
+    local method=$1 path=$2
+    shift 2
+    curl -fsS -X "$method" -H 'X-LocalRepo-Action: true' "$@" "$base$path"
+    echo
+}
+
+service() {
+    [[ "$(uname)" == Darwin ]] || die "the service command uses macOS launchd; on Linux run 'localrepo start --foreground' from systemd"
+    local domain="gui/$(id -u)"
+    case "${1:-}" in
+        install)
+            local script java_home
+            script=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
+            java_home=$(dirname "$(dirname "$(java_cmd)")")
+            mkdir -p "$(dirname "$plist")" "$home/logs"
+            cat > "$plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>$label</string>
+    <key>ProgramArguments</key>
+    <array><string>$script</string><string>start</string><string>--foreground</string></array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>JAVA_HOME</key><string>$java_home</string>
+        <key>LOCALREPO_HOME</key><string>$home</string>
+        <key>LOCALREPO_PORT</key><string>$port</string>
+        <key>LOCALREPO_JAR</key><string>$jar</string>
+    </dict>
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>
+    <key>StandardOutPath</key><string>$log_file</string>
+    <key>StandardErrorPath</key><string>$log_file</string>
+</dict>
+</plist>
+PLIST
+            stop > /dev/null || true
+            launchctl bootout "$domain/$label" 2> /dev/null || true
+            launchctl bootstrap "$domain" "$plist"
+            echo "LocalRepoServer now starts at login ($plist)"
+            ;;
+        uninstall)
+            launchctl bootout "$domain/$label" 2> /dev/null || true
+            rm -f "$plist"
+            echo "Removed the login service"
+            ;;
+        *) die "usage: localrepo service install|uninstall" ;;
+    esac
+}
+
+case "${1:-help}" in
+    start) shift; start "$@" ;;
+    stop) stop ;;
+    restart) stop; start ;;
+    status) status ;;
+    logs) tail -f "$log_file" ;;
+    open) require_running; open "$base" 2> /dev/null || xdg-open "$base" ;;
+    install-gradle) action POST /setup/gradle/install ;;
+    uninstall-gradle) action POST /setup/gradle/uninstall ;;
+    install-maven) action POST /setup/maven/install ;;
+    uninstall-maven) action POST /setup/maven/uninstall ;;
+    offline)
+        case "${2:-}" in
+            on) action POST /api/offline -H 'Content-Type: application/json' -d '{"enabled":true}' ;;
+            off) action POST /api/offline -H 'Content-Type: application/json' -d '{"enabled":false}' ;;
+            *) die "usage: localrepo offline on|off" ;;
+        esac
+        ;;
+    export)
+        require_running
+        file=${2:-localrepo-bundle-$(date +%Y%m%d-%H%M%S).zip}
+        query=""
+        [[ -n "${3:-}" ]] && query="?usedWithin=$3"
+        curl -fsS -o "$file" "$base/api/export$query"
+        echo "Wrote $file"
+        ;;
+    import)
+        [[ -f "${2:-}" ]] || die "usage: localrepo import <bundle.zip>"
+        action POST /api/import -H 'Content-Type: application/zip' --data-binary "@$2"
+        ;;
+    service) service "${2:-}" ;;
+    version)
+        [[ -f "$jar" ]] || die "no server jar at $jar"
+        unzip -p "$jar" META-INF/MANIFEST.MF | tr -d '\r' | sed -n 's/^Implementation-Version: /LocalRepoServer /p'
+        ;;
+    help | -h | --help) usage ;;
+    *) usage; exit 2 ;;
+esac

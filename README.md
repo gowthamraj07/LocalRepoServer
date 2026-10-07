@@ -1,120 +1,155 @@
 # LocalRepoServer
 
-### About
-This application acts as a local repository server for Gradle projects.
------
+A caching proxy for Maven and Gradle repositories that runs on your own machine. Every artifact your builds download
+goes through it once and is kept, so:
 
-### How to start the local repository server
-Run the following command in Terminal to start the Server.
+ * builds keep working when the network is slow, flaky or gone, and after `~/.gradle/caches` or `~/.m2` is wiped
+ * big downloads are not repeated across projects, Gradle user homes or CI-like clean builds
+ * a project's dependencies can be packed into one zip and carried to another machine
+
+It handles plain Maven and Gradle projects as well as Android and Kotlin/Compose Multiplatform builds (Google Maven,
+the Gradle Plugin Portal, JetBrains Compose and JitPack are set up out of the box), and it needs no change to the
+projects themselves.
+
+## Quick start
+
+Needs Java 21 or newer.
+
 ```
-java -jar server-1.0.0.jar --repos=<repo1>,<repo2>,...
+curl -fsSL https://raw.githubusercontent.com/gowthamraj07/LocalRepoServer/master/install.sh | bash
+
+localrepo start              # or: localrepo service install   (macOS: start at every login)
+localrepo install-gradle     # every Gradle build on this machine now goes through the server
+localrepo install-maven      # and every Maven build
+localrepo open               # the web UI at http://localhost:8082
 ```
 
-Without `--repos` the server uses Maven Central and Google Maven.
+That is all: build as usual. The first build fills the cache; after that, builds are served from it.
 
-Example (to use Maven Crental repository):
-```
-java -jar server-1.0.0.jar --repos=https://repo1.maven.org/maven2
-```
+To undo: `localrepo uninstall-gradle`, `localrepo uninstall-maven`, `localrepo service uninstall`, `localrepo stop`.
 
-Example (to use Google Crental repository):
-```
-java -jar server-1.0.0.jar --repos=https://dl.google.com/android/maven2
-```
+## What the builds see
 
-Example (to use Maven Crental repository and Google Crental repository):
-```
-java -jar server-1.0.0.jar --repos=https://repo1.maven.org/maven2,https://dl.google.com/android/maven2
-```
------
-
-### How to send every Gradle build on this machine through the server
-With the server running, install its Gradle init script once:
-```
-curl -X POST -H 'X-LocalRepo-Action: true' http://localhost:8082/setup/gradle/install
-```
-It is written to `~/.gradle/init.d/localrepo.init.gradle` (or `$GRADLE_USER_HOME/init.d`). From then on every build,
-plugins included, asks the server first and keeps its own repositories behind it. No project needs editing.
+**Gradle.** `install-gradle` puts an init script in `~/.gradle/init.d` (or `$GRADLE_USER_HOME/init.d`). It places the
+server in front of plugin resolution and of every repository list a build declares; the build's own repositories stay
+behind it, so anything the server cannot serve (a private repository it does not know) still resolves as before.
 
  * When the server is not running, builds use their own repositories as if nothing was installed
- * Skip the server for one build: `./gradlew build -Plocalrepo.disabled=true` (or `LOCALREPO_DISABLED=1`)
- * Check: `curl http://localhost:8082/setup/gradle`; remove: `curl -X POST -H 'X-LocalRepo-Action: true' http://localhost:8082/setup/gradle/uninstall`
+ * Skip the server for one build with `-Plocalrepo.disabled=true` (or `LOCALREPO_DISABLED=1`)
 
-To configure a single project by hand instead, add the server in front of its repositories:
-```
-maven {
-    url "http://localhost:8082/cache"
-    allowInsecureProtocol = true
+**Maven.** `install-maven` adds a `mirrorOf *` mirror at the top of `~/.m2/settings.xml`, creating the file if needed,
+leaving the rest untouched and backing it up first. Mirrors you declared for a specific repository id still win.
+Maven has no fallback: while the mirror is installed, the server must be running. To try it without touching your
+settings, download `http://localhost:8082/setup/maven/settings.xml` and build with `mvn -s`.
+
+**One project by hand**, without the global setup:
+
+```kotlin
+repositories {
+    maven { url = uri("http://localhost:8082/cache"); isAllowInsecureProtocol = true }
 }
 ```
------
 
-### How to send every Maven build on this machine through the server
+## No waiting on big downloads
+
+A file the cache does not have is streamed to the build **while** it downloads, with its real size, so the build shows
+progress straight away instead of waiting for the server. Several builds asking for the same file share one download,
+and the download finishes and is cached even if the build that started it gives up. The Downloads page of the UI shows
+what is being fetched, how fast, and how far along.
+
+## The web UI
+
+`localrepo open`, or http://localhost:8082:
+
+ * **Dashboard**: hit rate, bytes served from the cache, disk use
+ * **Downloads**: live progress of everything being fetched, and recent results
+ * **Artifacts**: search the cache by path, see sizes, hits and last use, delete or re-fetch files
+ * **Upstreams**: the repositories behind the server, their filters, and whether they are reachable
+ * **Maintenance**: export and import bundles, prefetch, purge, size limit
+ * **Setup**: install or remove the Gradle and Maven setup; check the whole cache for corruption
+
+The switch in the header puts the server in **offline mode**: it never contacts an upstream, serves what it has and
+answers 404 for the rest.
+
+## Taking dependencies to another machine
+
 ```
-curl -X POST -H 'X-LocalRepo-Action: true' http://localhost:8082/setup/maven/install
+localrepo export bundle.zip          # everything cached
+localrepo export bundle.zip 1h       # only what was used in the last hour: build a project first, then export
+localrepo import bundle.zip          # on the other machine
 ```
-This adds a `mirrorOf *` mirror to `~/.m2/settings.xml` (creating it if needed), first in the list so it wins over
-wildcard mirrors; mirrors you declared for a specific repository id still take precedence. The rest of the file is left
-untouched and a backup is written next to it before every change.
 
- * Maven has no fallback: while the mirror is installed the server must be running. Uninstall with
-   `curl -X POST -H 'X-LocalRepo-Action: true' http://localhost:8082/setup/maven/uninstall`, which restores the file
- * To try it without touching your settings: `curl -o localrepo-settings.xml http://localhost:8082/setup/maven/settings.xml`
-   and build with `mvn -s localrepo-settings.xml ...`
------
+Bundles are zips of the cache with SHA-256 checksums. Importing keeps files the cache already has and rejects anything
+whose bytes do not match. The cache directory is itself a plain Maven repository layout (`~/.localrepo/cache/<upstream>/`).
 
-### How to initialize the local repository
- * Close all the IDEs (Eclipse/STS/IntelliJ/Android Studio)
- * delete the `~/.gradle/caches` folder
- * Open the IDE
- * clean and build the project `gradle clean build`
------
+## Configuration
 
-### How it works
- * The server is a caching proxy. A request for `/cache/<path>` is served from `~/.localrepo/cache/default/<path>` when present, otherwise it is fetched from the upstreams in order and stored there in the standard Maven layout
- * Files are only stored once completely downloaded; a `<file>.meta.json` sidecar records where and when each came from
- * A path that no upstream has returns `404`, and is remembered for 5 minutes (`--localrepo.negative-cache-ttl`)
- * Change the cache location with `--localrepo.cache-dir=/some/dir`
- * Released artifacts never change and are served from the cache forever. `maven-metadata.xml` and `-SNAPSHOT` files
-   are checked with their upstream again after 24 hours (`--localrepo.metadata-ttl`) with a conditional request; if the
-   upstream cannot be reached the cached copy is served with an `X-LocalRepo-Stale: true` header
- * Every download is checked against the SHA-256 (or SHA-1) its repository publishes before it is cached; a mismatch
-   is moved to `~/.localrepo/cache/.quarantine` and never served. Responses carry `X-Checksum-Sha256` / `X-Checksum-Sha1`
- * Re-check the whole cache with `curl -X POST -H 'X-LocalRepo-Action: true' http://localhost:8082/api/verify` and read
-   the report with `curl http://localhost:8082/api/verify`; corrupt files are deleted and fetched again on next use
- * Offline mode never contacts an upstream: start with `--localrepo.offline=true`, or switch at runtime with
-   `curl -X POST -H 'X-LocalRepo-Action: true' -H 'Content-Type: application/json' -d '{"enabled":true}' http://localhost:8082/api/offline`
------
+Put settings in `~/.localrepo/config.yml`; `localrepo start` applies it. The defaults are in
+[application.yml](src/main/resources/application.yml).
 
-### End points
- * `http://localhost:8082/`: the web UI (dashboard, live downloads, artifact browser, upstreams, setup)
- * `GET /api/artifacts?q=&repository=&page=&size=`: cached files with Maven coordinates, size, hits and last access
- * `DELETE /api/artifacts?repository=&path=`: delete a file or everything below a path (needs `X-LocalRepo-Action`)
- * `POST /api/artifacts/refetch?repository=&path=`: download one file again (needs `X-LocalRepo-Action`)
- * `GET /api/stats`: hits, misses, hit rate, bytes served from the cache and downloaded, disk use
- * `GET /api/downloads`: active and recent downloads with progress
- * `GET /api/events`: server-sent events (`download-started`, `download-progress`, `download-completed`,
-   `download-failed`, `cache-hit`)
- * `GET /actuator/health`: liveness, used by the Gradle init script
------
-
-### How to ship the cache
-Bundles carry cached files to another machine, with checksums (also on the Maintenance page of the UI):
+```yaml
+localrepo:
+  max-size: 20GB              # delete the least recently used files when the cache grows past this
+  pinned: [ "androidx/**" ]   # ...but never these
+  metadata-ttl: 24h           # how long maven-metadata.xml and -SNAPSHOT files are served before rechecking
+  offline: false
+  upstreams:                  # replaces the default list: copy the defaults from application.yml and add yours
+    - name: central
+      url: https://repo.maven.apache.org/maven2
+    - name: company
+      url: https://nexus.example.com/repository/maven-releases
+      includes: [ "com/example/**" ]               # only ask it for these paths
+      credentials: { username-env: NEXUS_USER, password-env: NEXUS_PASSWORD }
 ```
-# everything, or what one project used: build it first, then export what was used in that time
-curl -o bundle.zip 'http://localhost:8082/api/export'
-curl -o bundle.zip 'http://localhost:8082/api/export?usedWithin=1h'
 
-# on the other machine
-curl -X POST -H 'X-LocalRepo-Action: true' -H 'Content-Type: application/zip' --data-binary @bundle.zip \
-  http://localhost:8082/api/import
+ * A miss asks the upstreams in order, skipping those whose `includes`/`excludes` rule the path out. `/repo/<name>/`
+   asks one upstream directly. Credentials are read from the named environment variables, never stored
+ * Released artifacts never change, so once cached they are served forever. Version listings and snapshots are
+   rechecked with a conditional request after `metadata-ttl`; if the upstream is down the cached copy is served
+   (marked `X-LocalRepo-Stale: true`)
+ * Every download is checked against the SHA-256 or SHA-1 its repository publishes before it is cached. A mismatch is
+   quarantined in `~/.localrepo/cache/.quarantine` and never served
+ * A path that no upstream has is answered with 404 without asking again for 5 minutes (`negative-cache-ttl`)
+ * Prefetch ahead of going offline: `group:artifact:version` lines, repository paths or a Gradle
+   `verification-metadata.xml`, on the Maintenance page or `POST /api/prefetch`
+
+## API
+
+Changes need the header `X-LocalRepo-Action: true`; a browser only sends a custom header from the server's own pages,
+so other websites cannot trigger them.
+
+| | |
+|---|---|
+| `GET /cache/<path>`, `/group/<path>` | an artifact from the cache or the upstreams; `/repo/<name>/<path>` for one upstream |
+| `GET /api/artifacts?q=&repository=&page=&size=` | cached files with coordinates, size, hits and last use |
+| `DELETE /api/artifacts?repository=&path=` | delete a file or everything below a path |
+| `POST /api/artifacts/refetch?repository=&path=` | download one file again |
+| `GET /api/stats`, `GET /api/downloads` | usage totals; active and recent downloads |
+| `GET /api/events` | server-sent events: `download-started`, `-progress`, `-completed`, `-failed`, `cache-hit` |
+| `GET/POST /api/offline` | offline mode, `{"enabled": true}` |
+| `GET /api/export?repository=&path=&usedWithin=`, `POST /api/import` | bundles |
+| `POST /api/prefetch`, `POST /api/purge?path=&unusedFor=`, `POST /api/evict`, `POST /api/verify` | maintenance |
+| `GET /setup/gradle`, `POST /setup/gradle/install`, `/uninstall` | the Gradle init script; same under `/setup/maven` |
+| `GET /actuator/health` | liveness |
+
+## Troubleshooting
+
+ * `localrepo status` shows whether the server runs, its hit rate, and what is installed; `localrepo logs` follows the
+   log in `~/.localrepo/logs/server.log`
+ * A Gradle build that should go through the server does not: is the server running (the init script quietly steps
+   aside when it is not), and was the build started with `-Plocalrepo.disabled=true`?
+ * A dependency from a private repository is missing offline: add that repository as an upstream (see Configuration),
+   so the server caches it too
+ * Suspect a corrupt file: Setup → Check the cache, or delete it on the Artifacts page; it is fetched again on next use
+
+## Development
+
 ```
-Importing keeps files the cache already has and rejects anything that does not match the bundle's checksums.
+./mvnw verify                                   # unit and integration tests, including real Gradle builds
+./mvnw package -DskipTests && scripts/test-cli.sh
+scripts/smoke.sh <gradle project> <tasks>       # proves a project builds offline from the server alone
+scripts/smoke.sh --maven <maven project> <goals>
+```
 
-### Keeping the cache in shape
- * `--localrepo.max-size=20GB` deletes the least recently used files when the cache grows past it (checked every
-   10 minutes); `--localrepo.pinned=androidx/**,...` protects paths from that
- * `POST /api/purge?path=com/example&unusedFor=30d` deletes files below a path and/or unused for a while
- * `POST /api/prefetch` with `group:artifact:version` lines, repository paths, or a Gradle `verification-metadata.xml`
-   downloads them ahead of time, e.g. before going offline; `GET /api/prefetch` shows progress
------
+`./install.sh --jar target/server-<version>.jar` installs a local build. Pushing a `v<version>` tag publishes a release.
+See [docs/pilot-2026.md](docs/pilot-2026.md) for results on real projects.

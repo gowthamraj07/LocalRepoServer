@@ -20,3 +20,4 @@ jobs:
           path: /tmp/localrepo-gradle-test-home/wrapper/dists
           key: gradle-test-${{ hashFiles('src/test/resources/gradle-wrapper/gradle-wrapper.properties') }}
       - run: ./mvnw -B verify
+      - run: scripts/test-cli.sh
