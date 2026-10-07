@@ -2,6 +2,7 @@ package com.localrepo.server.config;
 
 import com.localrepo.server.artifact.ArtifactService;
 import com.localrepo.server.artifact.ArtifactStore;
+import com.localrepo.server.artifact.CacheVerifier;
 import com.localrepo.server.artifact.DownloadCoordinator;
 import com.localrepo.server.artifact.DownloadTracker;
 import com.localrepo.server.artifact.FreshnessPolicy;
@@ -76,6 +77,11 @@ public class LocalRepoConfiguration {
         repositories.forEach(r -> log.info("Upstream {}", r));
         return new ArtifactService(repositories, upstreamClient, negativeCache, downloads,
                 new FreshnessPolicy(properties.metadataTtl(), clock), offline);
+    }
+
+    @Bean
+    CacheVerifier cacheVerifier(ArtifactService service, Clock clock) {
+        return new CacheVerifier(service, clock);
     }
 
     /** {@code --repos=url1,url2} replaces the configured upstreams with unfiltered ones named after their hosts. */

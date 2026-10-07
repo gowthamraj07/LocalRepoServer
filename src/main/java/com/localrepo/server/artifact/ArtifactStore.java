@@ -48,7 +48,24 @@ public class ArtifactStore {
         if (!Files.isRegularFile(file)) {
             return Optional.empty();
         }
-        return Optional.of(new CachedArtifact(path, file, readMeta(file)));
+        ArtifactMeta meta = readMeta(file);
+        try {
+            if (meta.size() >= 0 && Files.size(file) != meta.size()) {
+                log.warn("Dropping {}: {} bytes on disk but {} when downloaded", file, Files.size(file), meta.size());
+                delete(path);
+                return Optional.empty();
+            }
+        } catch (IOException e) {
+            return Optional.empty();
+        }
+        return Optional.of(new CachedArtifact(path, file, meta));
+    }
+
+    /** Removes an artifact and its metadata; the next request fetches it again. */
+    public void delete(ArtifactPath path) throws IOException {
+        Path file = fileFor(path);
+        Files.deleteIfExists(file);
+        Files.deleteIfExists(metaFileFor(file));
     }
 
     public CachedArtifact save(ArtifactPath path, InputStream content, Origin origin) throws IOException {
@@ -72,7 +89,7 @@ public class ArtifactStore {
         ArtifactMeta meta = new ArtifactMeta(old.upstreamUrl(),
                 confirmation.etag() != null ? confirmation.etag() : old.etag(),
                 confirmation.lastModified() != null ? confirmation.lastModified() : old.lastModified(),
-                clock.instant(), old.size(), old.sha256());
+                clock.instant(), old.size(), old.sha256(), old.sha1(), old.checksumVerified());
         Path metaFile = metaFileFor(cached.file());
         Path part = Files.createTempFile(metaFile.getParent(), metaFile.getFileName().toString() + ".", ArtifactPath.PART_SUFFIX);
         try {
@@ -102,8 +119,10 @@ public class ArtifactStore {
         private final Path file;
         private final Path part;
         private final FileChannel channel;
-        private final MessageDigest sha256 = sha256();
+        private final MessageDigest sha256 = digest("SHA-256");
+        private final MessageDigest sha1 = digest("SHA-1");
         private long size;
+        private Checksums checksums;
         private boolean committed;
 
         private PendingWrite(ArtifactPath path, Path file, Path part) throws IOException {
@@ -126,16 +145,50 @@ public class ArtifactStore {
             while (buffer.hasRemaining()) {
                 channel.write(buffer);
             }
+            if (checksums != null) {
+                throw new IllegalStateException("Checksums were already taken");
+            }
             sha256.update(bytes, offset, length);
+            sha1.update(bytes, offset, length);
             size += length;
+        }
+
+        /** Checksums of everything written; no more bytes can be written afterwards. */
+        public Checksums checksums() {
+            if (checksums == null) {
+                HexFormat hex = HexFormat.of();
+                checksums = new Checksums(hex.formatHex(sha256.digest()), hex.formatHex(sha1.digest()));
+            }
+            return checksums;
+        }
+
+        /** Moves the bytes out of the cache, next to it, for inspection. The write is over afterwards. */
+        public Path quarantine() throws IOException {
+            channel.close();
+            Path target = root.resolveSibling(".quarantine").resolve(root.getFileName())
+                    .resolve(path.value() + "." + clock.instant().toEpochMilli());
+            Files.createDirectories(target.getParent());
+            Files.move(part, target, StandardCopyOption.ATOMIC_MOVE);
+            committed = true;
+            return target;
         }
 
         /** Makes the artifact visible under its final name. */
         public CachedArtifact commit(Origin origin) throws IOException {
+            return commit(origin, null);
+        }
+
+        /**
+         * Makes the artifact visible under its final name.
+         *
+         * @param checksumVerified the upstream checksum the bytes matched, or null if none was available
+         */
+        public CachedArtifact commit(Origin origin, String checksumVerified) throws IOException {
             channel.force(true);
             channel.close();
+            Checksums sums = checksums();
             ArtifactMeta meta = new ArtifactMeta(origin.url(), origin.etag(), origin.lastModified(), clock.instant(),
-                    size, HexFormat.of().formatHex(sha256.digest()));
+                    size, sums.sha256(), sums.sha1(), checksumVerified);
             json.writeValue(metaFileFor(file).toFile(), meta);
             makeReadable(part);
             Files.move(part, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
@@ -207,9 +260,12 @@ public class ArtifactStore {
         }
     }
 
-    private static MessageDigest sha256() {
+    public record Checksums(String sha256, String sha1) {
+    }
+
+    private static MessageDigest digest(String algorithm) {
         try {
-            return MessageDigest.getInstance("SHA-256");
+            return MessageDigest.getInstance(algorithm);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }

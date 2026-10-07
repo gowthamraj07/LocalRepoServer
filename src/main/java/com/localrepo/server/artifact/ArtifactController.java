@@ -123,6 +123,12 @@ public class ArtifactController {
         }
         ArtifactMeta meta = artifact.meta();
         withValidators(response, meta.etag(), meta.lastModified());
+        if (meta.sha256() != null) {
+            response.header("X-Checksum-Sha256", meta.sha256());
+        }
+        if (meta.sha1() != null) {
+            response.header("X-Checksum-Sha1", meta.sha1());
+        }
         if (meta.lastModified() == null) {
             response.lastModified(meta.fetchedAt());
         }

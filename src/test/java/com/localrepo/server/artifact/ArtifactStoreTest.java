@@ -149,6 +149,65 @@ class ArtifactStoreTest {
         assertTrue(store.find(POM).isEmpty());
     }
 
+    @Test
+    void computesSha1AndSha256WhileWriting() throws IOException {
+        try (ArtifactStore.PendingWrite write = store.begin(POM)) {
+            byte[] content = "<project/>".getBytes(StandardCharsets.UTF_8);
+            write.write(content, 0, content.length);
+
+            assertEquals("618a333ca21cdc97fc758355c6127cb83ae2a1b0c892a8b7a1b726b02d378a54", write.checksums().sha256());
+            assertEquals(sha1("<project/>"), write.checksums().sha1());
+
+            CachedArtifact committed = write.commit(ORIGIN, "sha256");
+            assertEquals(sha1("<project/>"), committed.meta().sha1());
+            assertEquals("sha256", committed.meta().checksumVerified());
+        }
+    }
+
+    @Test
+    void quarantinesARejectedDownloadOutsideTheRepository() throws IOException {
+        Path quarantined;
+        try (ArtifactStore.PendingWrite write = store.begin(POM)) {
+            write.write(new byte[]{1, 2, 3}, 0, 3);
+            quarantined = write.quarantine();
+        }
+
+        assertFalse(quarantined.startsWith(root));
+        assertTrue(quarantined.startsWith(root.getParent().resolve(".quarantine").resolve(root.getFileName())));
+        assertArrayEquals(new byte[]{1, 2, 3}, Files.readAllBytes(quarantined));
+        assertTrue(store.find(POM).isEmpty());
+        Files.delete(quarantined);
+    }
+
+    @Test
+    void dropsAFileWhoseSizeNoLongerMatchesItsMetadata() throws IOException {
+        Path file = store.save(POM, bytes("<project/>"), ORIGIN).file();
+        Files.writeString(file, "<proj");
+
+        assertTrue(store.find(POM).isEmpty());
+        assertFalse(Files.exists(file));
+        assertFalse(Files.exists(file.resolveSibling(file.getFileName() + ".meta.json")));
+    }
+
+    @Test
+    void deletesAnArtifactAndItsMetadata() throws IOException {
+        Path file = store.save(POM, bytes("<project/>"), ORIGIN).file();
+
+        store.delete(POM);
+
+        assertFalse(Files.exists(file));
+        assertTrue(store.list().isEmpty());
+    }
+
+    private static String sha1(String text) {
+        try {
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-1")
+                    .digest(text.getBytes(StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     private static InputStream bytes(String content) {
         return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
     }

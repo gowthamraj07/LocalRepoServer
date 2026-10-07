@@ -3,9 +3,13 @@ package com.localrepo.server.artifact;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -192,6 +196,58 @@ public class ArtifactService {
         download.notFound();
     }
 
+    private static final List<String> CHECKSUM_SUFFIXES = List.of(".md5", ".sha1", ".sha256", ".sha512", ".asc");
+
+    /**
+     * {@code algorithm} is the checksum the bytes were compared with, null when the upstream publishes none;
+     * {@code mismatch} means they differ.
+     */
+    private record Verification(String algorithm, boolean mismatch, String computed, String published) {
+        static final Verification NONE = new Verification(null, false, null, null);
+    }
+
+    /**
+     * Compares what was downloaded with the checksum the repository publishes for it, SHA-256 first, then SHA-1, and
+     * caches the checksum file that matched.
+     */
+    private Verification verify(Repository repository, ArtifactPath path, ArtifactStore.Checksums checksums) {
+        if (CHECKSUM_SUFFIXES.stream().anyMatch(path.fileName()::endsWith)) {
+            return Verification.NONE;
+        }
+        for (String algorithm : List.of("sha256", "sha1")) {
+            String computed = algorithm.equals("sha256") ? checksums.sha256() : checksums.sha1();
+            ArtifactPath checksumPath = ArtifactPath.of(path.value() + "." + algorithm);
+            try (UpstreamResponse response = upstreamClient.get(repository, checksumPath)) {
+                if (!response.isOk()) {
+                    continue;
+                }
+                byte[] body = response.body().readNBytes(1024);
+                String published = parseChecksum(body, computed.length());
+                if (published == null) {
+                    log.debug("Ignoring unreadable {}", checksumPath.value());
+                    continue;
+                }
+                if (!published.equals(computed)) {
+                    return new Verification(algorithm, true, computed, published);
+                }
+                repository.store().save(checksumPath, new ByteArrayInputStream(body), response.origin());
+                return new Verification(algorithm, false, computed, published);
+            } catch (IOException e) {
+                log.debug("Could not fetch {} from {}", checksumPath.value(), repository.name(), e);
+            }
+        }
+        log.debug("{} publishes no checksum for {}", repository.name(), path.value());
+        return Verification.NONE;
+    }
+
+    /** Checksum files hold the hex digest, sometimes followed by whitespace and the file name. */
+    private static String parseChecksum(byte[] body, int expectedLength) {
+        String[] tokens = new String(body, StandardCharsets.US_ASCII).trim().split("\\s+");
+        String digest = tokens.length == 0 ? "" : tokens[0].toLowerCase(Locale.ROOT);
+        return digest.length() == expectedLength && digest.chars().allMatch(c -> Character.digit(c, 16) >= 0)
+                ? digest : null;
+    }
+
     /**
      * Copies the body into the repository's store while readers follow it. Once bytes may have reached a client a
      * failure is final: falling back to another upstream could splice two different files together.
@@ -210,7 +266,15 @@ public class ArtifactService {
             if (contentLength >= 0 && write.size() != contentLength) {
                 throw new IOException("Expected " + contentLength + " bytes but got " + write.size());
             }
-            download.complete(() -> write.commit(response.origin()));
+            Verification verification = verify(repository, path, write.checksums());
+            if (verification.mismatch()) {
+                Path quarantined = write.quarantine();
+                log.error("{} from {} does not match its published {} ({} != {}); quarantined at {}", path.value(),
+                        repository.name(), verification.algorithm(), verification.computed(),
+                        verification.published(), quarantined);
+                throw new IOException("Checksum mismatch for " + path.value());
+            }
+            download.complete(() -> write.commit(response.origin(), verification.algorithm()));
             log.info("Cached {} from {} ({} bytes)", path.value(), repository.name(), write.size());
         } catch (IOException e) {
             log.warn("Download of {} from {} failed: {}", path.value(), response.url(), e.toString());

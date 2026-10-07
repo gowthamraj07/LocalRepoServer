@@ -78,6 +78,10 @@ untouched and a backup is written next to it before every change.
  * Released artifacts never change and are served from the cache forever. `maven-metadata.xml` and `-SNAPSHOT` files
    are checked with their upstream again after 24 hours (`--localrepo.metadata-ttl`) with a conditional request; if the
    upstream cannot be reached the cached copy is served with an `X-LocalRepo-Stale: true` header
+ * Every download is checked against the SHA-256 (or SHA-1) its repository publishes before it is cached; a mismatch
+   is moved to `~/.localrepo/cache/.quarantine` and never served. Responses carry `X-Checksum-Sha256` / `X-Checksum-Sha1`
+ * Re-check the whole cache with `curl -X POST -H 'X-LocalRepo-Action: true' http://localhost:8082/api/verify` and read
+   the report with `curl http://localhost:8082/api/verify`; corrupt files are deleted and fetched again on next use
  * Offline mode never contacts an upstream: start with `--localrepo.offline=true`, or switch at runtime with
    `curl -X POST -H 'X-LocalRepo-Action: true' -H 'Content-Type: application/json' -d '{"enabled":true}' http://localhost:8082/api/offline`
 -----

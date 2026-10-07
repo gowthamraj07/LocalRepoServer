@@ -350,6 +350,60 @@ class ArtifactControllerTest {
     }
 
     @Test
+    void neverPresentsADownloadThatFailsItsChecksumAsComplete() throws Exception {
+        String bad = "/maven2/bad/bad/1/bad-1.jar";
+        upstream.stubFor(get(bad).willReturn(ok().withBody(new byte[]{1, 2, 3, 5})));
+        upstream.stubFor(get(bad + ".sha1").willReturn(ok("12dada1fff4d4787ade3333147202c3b443e376f")
+                .withFixedDelay(300)));
+
+        HttpResponse<InputStream> response = http.send(request("bad/bad/1/bad-1.jar").build(),
+                HttpResponse.BodyHandlers.ofInputStream());
+
+        assertEquals("4", header(response, "Content-Length"));
+        try (InputStream body = response.body()) {
+            assertThrows(IOException.class, body::readAllBytes);
+        }
+        assertFalse(Files.exists(cacheDir.resolve("mock/bad/bad/1/bad-1.jar")));
+    }
+
+    @Test
+    void exposesTheChecksumsOfCachedArtifacts() throws Exception {
+        fetch("junit/junit/4.13.2/junit-4.13.2.jar");
+        waitForBackgroundDownloads();
+
+        HttpResponse<byte[]> cached = fetch("junit/junit/4.13.2/junit-4.13.2.jar");
+
+        assertEquals("9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a", header(cached, "X-Checksum-Sha256"));
+        assertEquals("12dada1fff4d4787ade3333147202c3b443e376f", header(cached, "X-Checksum-Sha1"));
+    }
+
+    @Test
+    void verifiesTheWholeCacheAndDropsCorruptFiles() throws Exception {
+        fetch("junit/junit/4.13.2/junit-4.13.2.jar");
+        fetch("junit/junit/4.13.2/junit-4.13.2.pom");
+        waitForBackgroundDownloads();
+        Path jar = cacheDir.resolve("mock/junit/junit/4.13.2/junit-4.13.2.jar");
+        Files.write(jar, new byte[]{9, 9, 9, 9});
+        HttpRequest.Builder start = HttpRequest.newBuilder(URI.create(base() + "/api/verify"))
+                .POST(HttpRequest.BodyPublishers.noBody());
+
+        assertEquals(403, http.send(start.build(), HttpResponse.BodyHandlers.ofString()).statusCode());
+        assertEquals(200, http.send(start.header("X-LocalRepo-Action", "true").build(),
+                HttpResponse.BodyHandlers.ofString()).statusCode());
+        String report;
+        do {
+            Thread.sleep(20);
+            report = http.send(HttpRequest.newBuilder(URI.create(base() + "/api/verify")).build(),
+                    HttpResponse.BodyHandlers.ofString()).body();
+        } while (report.contains("\"running\":true"));
+
+        assertTrue(report.contains("\"checked\":2"), report);
+        assertTrue(report.contains("\"corrupt\":[\"mock/junit/junit/4.13.2/junit-4.13.2.jar\"]"), report);
+        assertFalse(Files.exists(jar));
+        assertArrayEquals(new byte[]{1, 2, 3, 4}, fetch("junit/junit/4.13.2/junit-4.13.2.jar").body());
+    }
+
+    @Test
     void neverPresentsATruncatedUpstreamBodyAsComplete() throws Exception {
         HttpResponse<InputStream> response = http.send(request("cut/cut/1/cut-1.jar").build(),
                 HttpResponse.BodyHandlers.ofInputStream());

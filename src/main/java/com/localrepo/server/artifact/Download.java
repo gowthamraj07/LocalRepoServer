@@ -229,6 +229,18 @@ public final class Download {
         }
     }
 
+    /**
+     * How far a reader may read. Until the download is committed, the last byte of a known-length file is held back:
+     * the client then cannot finish its transfer before the checks behind the commit pass, so a download rejected at
+     * the end still looks broken to it rather than complete.
+     */
+    private long readableLimit() {
+        if (state == State.COMPLETED || contentLength < 0) {
+            return bytesWritten;
+        }
+        return Math.min(bytesWritten, contentLength - 1);
+    }
+
     private final class FollowingInputStream extends InputStream {
 
         private final FileChannel channel;
@@ -253,7 +265,7 @@ public final class Download {
             long available;
             lock.lock();
             try {
-                while ((available = bytesWritten - position) <= 0) {
+                while ((available = readableLimit() - position) <= 0) {
                     if (state == State.COMPLETED) {
                         return -1;
                     }

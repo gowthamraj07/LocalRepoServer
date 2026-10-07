@@ -328,6 +328,68 @@ class ArtifactServiceTest {
         assertTrue(service.resolveAndWait(PATH).isPresent());
     }
 
+    private static final String JAR = "/maven2/junit/junit/4.13.2/junit-4.13.2.jar";
+    private static final ArtifactPath JAR_PATH = ArtifactPath.of("junit/junit/4.13.2/junit-4.13.2.jar");
+    // sha256 and sha1 of the four bytes 1, 2, 3, 4
+    private static final String JAR_SHA256 = "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a";
+    private static final String JAR_SHA1 = "12dada1fff4d4787ade3333147202c3b443e376f";
+
+    @Test
+    void verifiesADownloadAgainstTheUpstreamSha256AndCachesTheChecksum() throws Exception {
+        first.stubFor(get(JAR).willReturn(ok().withBody(new byte[]{1, 2, 3, 4})));
+        first.stubFor(get(JAR + ".sha256").willReturn(ok(JAR_SHA256)));
+
+        CachedArtifact artifact = service.resolveAndWait(JAR_PATH).orElseThrow();
+
+        assertEquals("sha256", artifact.meta().checksumVerified());
+        assertEquals(JAR_SHA1, artifact.meta().sha1());
+        assertEquals(JAR_SHA256, Files.readString(root.resolve("first").resolve(JAR_PATH.value() + ".sha256")));
+        first.verify(0, getRequestedFor(urlEqualTo(JAR + ".sha1")));
+    }
+
+    @Test
+    void fallsBackToSha1AndAcceptsTheChecksumFileFormatWithAFileName() throws Exception {
+        first.stubFor(get(JAR).willReturn(ok().withBody(new byte[]{1, 2, 3, 4})));
+        first.stubFor(get(JAR + ".sha1").willReturn(ok(JAR_SHA1.toUpperCase() + "  junit-4.13.2.jar\n")));
+
+        CachedArtifact artifact = service.resolveAndWait(JAR_PATH).orElseThrow();
+
+        assertEquals("sha1", artifact.meta().checksumVerified());
+    }
+
+    @Test
+    void rejectsAndQuarantinesADownloadThatDoesNotMatchItsChecksum() throws Exception {
+        first.stubFor(get(JAR).willReturn(ok().withBody(new byte[]{1, 2, 3, 5})));
+        first.stubFor(get(JAR + ".sha1").willReturn(ok(JAR_SHA1)));
+
+        assertTrue(service.resolveAndWait(JAR_PATH).isEmpty());
+
+        assertFalse(Files.exists(root.resolve("first").resolve(JAR_PATH.value())));
+        try (var quarantined = Files.walk(root.resolve(".quarantine"))) {
+            assertEquals(1, quarantined.filter(Files::isRegularFile).count());
+        }
+    }
+
+    @Test
+    void acceptsADownloadWhenTheUpstreamPublishesNoChecksum() throws Exception {
+        first.stubFor(get(JAR).willReturn(ok().withBody(new byte[]{1, 2, 3, 4})));
+
+        CachedArtifact artifact = service.resolveAndWait(JAR_PATH).orElseThrow();
+
+        assertNull(artifact.meta().checksumVerified());
+        assertEquals(JAR_SHA256, artifact.meta().sha256());
+    }
+
+    @Test
+    void doesNotLookForChecksumsOfChecksums() throws Exception {
+        first.stubFor(get(JAR + ".sha1").willReturn(ok(JAR_SHA1)));
+
+        service.resolveAndWait(ArtifactPath.of(JAR_PATH.value() + ".sha1")).orElseThrow();
+
+        first.verify(0, getRequestedFor(urlEqualTo(JAR + ".sha1.sha256")));
+        first.verify(0, getRequestedFor(urlEqualTo(JAR + ".sha1.sha1")));
+    }
+
     private Repository repo(String name, String url) {
         return repo(name, url, List.of(), List.of());
     }
