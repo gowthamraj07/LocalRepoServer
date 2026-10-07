@@ -1,5 +1,6 @@
 package com.localrepo.server.artifact;
 
+import com.localrepo.server.MutableClock;
 import com.github.tomakehurst.wiremock.http.Fault;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +42,7 @@ class ArtifactServiceTest {
     private static final String METADATA = "/maven2/junit/junit/maven-metadata.xml";
     private static final ArtifactPath METADATA_PATH = ArtifactPath.of("junit/junit/maven-metadata.xml");
 
-    private final NegativeCacheTest.MutableClock clock = new NegativeCacheTest.MutableClock(Instant.now());
+    private final MutableClock clock = new MutableClock(Instant.now());
     private final OfflineMode offline = new OfflineMode(false);
     private ArtifactService service;
 

@@ -1,5 +1,6 @@
 package com.localrepo.server.artifact;
 
+import com.localrepo.server.MutableClock;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -12,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DownloadTrackerTest {
 
-    private final NegativeCacheTest.MutableClock clock = new NegativeCacheTest.MutableClock(Instant.parse("2026-10-07T10:00:00Z"));
+    private final MutableClock clock = new MutableClock(Instant.parse("2026-10-07T10:00:00Z"));
     private final DownloadTracker tracker = new DownloadTracker(clock);
 
     @Test
