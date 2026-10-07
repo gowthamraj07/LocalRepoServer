@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="table" id="upstreams">
+    <p class="error" th:if="${upstreamError != null}" th:text="${upstreamError}"></p>
+    <table>
+        <thead><tr><th>#</th><th>Name</th><th>URL</th><th>Filters</th><th class="num">Cached files</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        <tr th:each="repository, it : ${repositories}">
+            <td th:text="${it.count}">1</td>
+            <td><code th:text="${repository.name()}">central</code></td>
+            <td class="wrap" th:text="${repository.url()}">https://repo.maven.apache.org/maven2</td>
+            <td class="wrap muted" th:text="${repository.filters()}">all paths</td>
+            <td class="num" th:text="${counts[repository.name()] ?: 0}">0</td>
+            <td th:attr="hx-get=@{/ui/fragments/upstream-status(name=${repository.name()})}" hx-trigger="load">
+                <span class="muted">Checking…</span>
+            </td>
+            <td class="actions">
+                <button type="button" class="small danger" th:if="${editable.contains(repository.name())}"
+                        th:attr="hx-post=@{/ui/upstreams/{name}/remove(name=${repository.name()})}"
+                        hx-target="#upstreams" hx-swap="outerHTML"
+                        hx-confirm="Stop using this upstream? Files it served stay cached.">Remove</button>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

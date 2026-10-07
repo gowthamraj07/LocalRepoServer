@@ -71,17 +71,24 @@ public class LocalRepoConfiguration {
     }
 
     @Bean
+    RepositoryFactory repositoryFactory(LocalRepoProperties properties, Environment environment, Clock clock) {
+        return new RepositoryFactory(properties, environment, clock);
+    }
+
+    @Bean
     ArtifactService artifactService(LocalRepoProperties properties, Environment environment, Clock clock,
-                                    UpstreamClient upstreamClient, NegativeCache negativeCache,
-                                    DownloadCoordinator downloads, OfflineMode offline) {
-        List<Repository> repositories = upstreams(properties, environment).stream()
-                .map(upstream -> new Repository(upstream.name(), upstream.url(), upstream.includes(),
-                        upstream.excludes(), credentials(upstream, environment, properties.gradleUserHome()),
-                        new ArtifactStore(properties.cacheDir().resolve(upstream.name()), clock)))
-                .toList();
-        repositories.forEach(r -> log.info("Upstream {}", r));
-        return new ArtifactService(repositories, upstreamClient, negativeCache, downloads,
+                                    RepositoryFactory repositories, UpstreamClient upstreamClient,
+                                    NegativeCache negativeCache, DownloadCoordinator downloads, OfflineMode offline) {
+        List<Repository> configured = upstreams(properties, environment).stream().map(repositories::create).toList();
+        configured.forEach(r -> log.info("Upstream {}", r));
+        return new ArtifactService(configured, upstreamClient, negativeCache, downloads,
                 new FreshnessPolicy(properties.metadataTtl(), clock), offline);
+    }
+
+    @Bean
+    UpstreamEditor upstreamEditor(LocalRepoProperties properties, ArtifactService service, RepositoryFactory repositories) {
+        return new UpstreamEditor(properties.home().resolve("upstreams.yml"), properties.extraUpstreams(), service,
+                repositories);
     }
 
     @Bean
@@ -121,55 +128,4 @@ public class LocalRepoConfiguration {
         }
     }
 
-    private static Repository.Credentials credentials(LocalRepoProperties.Upstream upstream, Environment environment,
-                                                      Path gradleUserHome) {
-        LocalRepoProperties.Credentials names = upstream.credentials();
-        CredentialSource source = new CredentialSource(upstream, environment, gradleUserHome);
-        String token = source.first(names.tokenEnv(), names.gradlePropertyToken());
-        if (names.tokenEnv() != null || names.gradlePropertyToken() != null) {
-            return Repository.Credentials.bearer(token);
-        }
-        if (names.usernameEnv() != null || names.passwordEnv() != null || names.gradlePropertyUsername() != null
-                || names.gradlePropertyPassword() != null) {
-            return Repository.Credentials.basic(source.first(names.usernameEnv(), names.gradlePropertyUsername()),
-                    source.first(names.passwordEnv(), names.gradlePropertyPassword()));
-        }
-        return Repository.Credentials.NONE;
-    }
-
-    /** Looks a credential up by environment variable or by Gradle property, warning when it is not set. */
-    private record CredentialSource(LocalRepoProperties.Upstream upstream, Environment environment, Path gradleUserHome) {
-
-        String first(String env, String gradleProperty) {
-            if (env != null) {
-                return required(upstream, env, environment);
-            }
-            if (gradleProperty == null) {
-                return null;
-            }
-            Properties properties = new Properties();
-            Path file = gradleUserHome.resolve("gradle.properties");
-            if (Files.isRegularFile(file)) {
-                try (Reader reader = Files.newBufferedReader(file)) {
-                    properties.load(reader);
-                } catch (IOException e) {
-                    log.warn("Could not read {}", file, e);
-                }
-            }
-            String value = properties.getProperty(gradleProperty);
-            if (value == null) {
-                log.warn("Upstream {} expects credentials in {} of {}, which is not set; sending none", upstream.name(),
-                        gradleProperty, file);
-            }
-            return value;
-        }
-    }
-
-    private static String required(LocalRepoProperties.Upstream upstream, String variable, Environment environment) {
-        String value = variable == null ? null : environment.getProperty(variable);
-        if (value == null) {
-            log.warn("Upstream {} expects credentials in {}, which is not set; sending none", upstream.name(), variable);
-        }
-        return value;
-    }
 }

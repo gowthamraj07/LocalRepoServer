@@ -6,22 +6,39 @@
 <main>
     <h1>Upstreams</h1>
     <p class="muted">A miss in <code>/cache/</code> asks these in order, skipping those whose filters exclude the path.
-        Configure them under <code>localrepo.upstreams</code>.</p>
-    <table>
-        <thead><tr><th>#</th><th>Name</th><th>URL</th><th>Filters</th><th class="num">Cached files</th><th>Status</th></tr></thead>
-        <tbody>
-        <tr th:each="repository, it : ${repositories}">
-            <td th:text="${it.count}">1</td>
-            <td><code th:text="${repository.name()}">central</code></td>
-            <td class="wrap" th:text="${repository.url()}">https://repo.maven.apache.org/maven2</td>
-            <td class="wrap muted" th:text="${repository.filters()}">all paths</td>
-            <td class="num" th:text="${counts[repository.name()] ?: 0}">0</td>
-            <td th:attr="hx-get=@{/ui/fragments/upstream-status(name=${repository.name()})}" hx-trigger="load">
-                <span class="muted">Checking…</span>
-            </td>
-        </tr>
-        </tbody>
-    </table>
+        The built-in ones come from <code>localrepo.upstreams</code>; the ones added below are saved in
+        <code>~/.localrepo/upstreams.yml</code>.</p>
+    <th:block th:replace="~{fragments/upstreams :: table}"></th:block>
+
+    <section class="card">
+        <h2>Add an upstream</h2>
+        <p>For a private or company repository, so its artifacts are cached and available offline too. Credentials are
+            given by name and looked up when the server starts; LocalRepoServer never stores them.</p>
+        <form hx-post="/ui/upstreams" hx-target="#upstreams" hx-swap="outerHTML" class="stacked-form">
+            <div class="inline-form">
+                <label>Name <input type="text" name="name" required pattern="[a-z0-9][a-z0-9-]*" placeholder="company"></label>
+                <label class="grow">URL <input type="text" name="url" required placeholder="https://maven.pkg.github.com/owner/repo"></label>
+            </div>
+            <div class="inline-form">
+                <label class="grow">Only for paths <input type="text" name="includes" placeholder="optional, e.g. com/example/**, io/github/owner/**"></label>
+            </div>
+            <div class="inline-form">
+                <label>Credentials
+                    <select name="credentials">
+                        <option value="none">none</option>
+                        <option value="gradle">username + password from gradle.properties</option>
+                        <option value="env">username + password from environment variables</option>
+                        <option value="token-gradle">token from gradle.properties</option>
+                        <option value="token-env">token from an environment variable</option>
+                    </select>
+                </label>
+                <label>Username key <input type="text" name="username" placeholder="gpr.user"></label>
+                <label>Password key <input type="text" name="password" placeholder="gpr.key"></label>
+                <label>Token key <input type="text" name="token" placeholder="GITHUB_TOKEN"></label>
+            </div>
+            <div class="buttons"><button type="submit">Add upstream</button></div>
+        </form>
+    </section>
 </main>
 </body>
 </html>

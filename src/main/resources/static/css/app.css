@@ -122,3 +122,6 @@ input[type="text"], input[type="number"], select, textarea {
     background: var(--bg); color: var(--text);
 }
 textarea { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; margin-bottom: 8px; }
+.inline-form label.grow { flex: 1; min-width: 260px; }
+.inline-form label.grow input { width: 100%; }
+.stacked-form .inline-form { margin-bottom: 12px; }

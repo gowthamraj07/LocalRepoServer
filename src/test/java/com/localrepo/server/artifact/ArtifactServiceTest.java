@@ -391,6 +391,21 @@ class ArtifactServiceTest {
         first.verify(0, getRequestedFor(urlEqualTo(JAR + ".sha1.sha1")));
     }
 
+    @Test
+    void addsAndRemovesRepositoriesWhileRunning() throws Exception {
+        first.stubFor(get(POM).willReturn(notFound()));
+        second.stubFor(get(POM).willReturn(notFound()));
+        service.addRepository(repo("third", second.baseUrl() + "/other"));
+        second.stubFor(get("/other/junit/junit/4.13.2/junit-4.13.2.pom").willReturn(ok("<project/>")));
+
+        assertEquals(List.of("first", "second", "third"), service.repositories().stream().map(Repository::name).toList());
+        assertTrue(service.resolveAndWait(PATH).isPresent());
+
+        service.removeRepository("third");
+        assertEquals(List.of("first", "second"), service.repositories().stream().map(Repository::name).toList());
+        assertThrows(IllegalArgumentException.class, () -> service.addRepository(repo("first", "http://x")));
+    }
+
     private Repository repo(String name, String url) {
         return repo(name, url, List.of(), List.of());
     }

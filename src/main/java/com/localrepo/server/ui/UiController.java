@@ -5,6 +5,8 @@ import com.localrepo.server.artifact.ArtifactService;
 import com.localrepo.server.artifact.CacheVerifier;
 import com.localrepo.server.artifact.OfflineMode;
 import com.localrepo.server.artifact.Repository;
+import com.localrepo.server.config.LocalRepoProperties;
+import com.localrepo.server.config.UpstreamEditor;
 import com.localrepo.server.setup.GradleSetup;
 import com.localrepo.server.setup.MavenSetup;
 import com.localrepo.server.setup.SetupController;
@@ -43,17 +45,19 @@ public class UiController {
     private final GradleSetup gradle;
     private final MavenSetup maven;
     private final CacheVerifier verifier;
+    private final UpstreamEditor upstreamEditor;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3))
             .followRedirects(HttpClient.Redirect.NORMAL).build();
 
     public UiController(ApiController api, ArtifactService service, OfflineMode offline, GradleSetup gradle,
-                        MavenSetup maven, CacheVerifier verifier) {
+                        MavenSetup maven, CacheVerifier verifier, UpstreamEditor upstreamEditor) {
         this.api = api;
         this.service = service;
         this.offline = offline;
         this.gradle = gradle;
         this.maven = maven;
         this.verifier = verifier;
+        this.upstreamEditor = upstreamEditor;
     }
 
     @ModelAttribute("offline")
@@ -86,11 +90,64 @@ public class UiController {
 
     @GetMapping("/upstreams")
     public String upstreams(Model model) {
-        List<Repository> repositories = service.repositories();
-        model.addAttribute("repositories", repositories);
+        upstreamsModel(model);
+        return "upstreams";
+    }
+
+    /** Adds an extra upstream, live and saved to upstreams.yml; credentials are names, never values. */
+    @PostMapping("/ui/upstreams")
+    public String addUpstream(@RequestHeader(value = SetupController.ACTION_HEADER, required = false) String action,
+                              @RequestParam String name, @RequestParam String url,
+                              @RequestParam(required = false) String includes,
+                              @RequestParam(defaultValue = "none") String credentials,
+                              @RequestParam(required = false) String username,
+                              @RequestParam(required = false) String password,
+                              @RequestParam(required = false) String token, Model model) throws IOException {
+        requireAction(action);
+        LocalRepoProperties.Credentials names = switch (credentials) {
+            case "gradle" -> new LocalRepoProperties.Credentials(null, null, null, blankToNull(username),
+                    blankToNull(password), null);
+            case "env" -> new LocalRepoProperties.Credentials(blankToNull(username), blankToNull(password), null,
+                    null, null, null);
+            case "token-env" -> new LocalRepoProperties.Credentials(null, null, blankToNull(token), null, null, null);
+            case "token-gradle" -> new LocalRepoProperties.Credentials(null, null, null, null, null, blankToNull(token));
+            default -> LocalRepoProperties.Credentials.NONE;
+        };
+        List<String> patterns = includes == null ? List.of() : java.util.Arrays.stream(includes.split(","))
+                .map(String::strip).filter(p -> !p.isEmpty()).toList();
+        try {
+            upstreamEditor.add(new LocalRepoProperties.Upstream(name.strip(), url.strip(), patterns, List.of(), names));
+        } catch (IllegalArgumentException e) {
+            model.addAttribute("upstreamError", e.getMessage());
+        }
+        upstreamsModel(model);
+        return "fragments/upstreams :: table";
+    }
+
+    @PostMapping("/ui/upstreams/{name}/remove")
+    public String removeUpstream(@RequestHeader(value = SetupController.ACTION_HEADER, required = false) String action,
+                                 @org.springframework.web.bind.annotation.PathVariable String name, Model model)
+            throws IOException {
+        requireAction(action);
+        try {
+            upstreamEditor.remove(name);
+        } catch (IllegalArgumentException e) {
+            model.addAttribute("upstreamError", e.getMessage());
+        }
+        upstreamsModel(model);
+        return "fragments/upstreams :: table";
+    }
+
+    private void upstreamsModel(Model model) {
+        model.addAttribute("repositories", service.repositories());
+        model.addAttribute("editable", upstreamEditor.extras().stream().map(LocalRepoProperties.Upstream::name)
+                .collect(java.util.stream.Collectors.toSet()));
         model.addAttribute("counts", service.list().entrySet().stream()
                 .collect(java.util.stream.Collectors.toMap(e -> e.getKey().name(), e -> e.getValue().size())));
-        return "upstreams";
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.strip();
     }
 
     @GetMapping("/setup")

@@ -24,7 +24,8 @@ public class ArtifactService {
     private static final Logger log = LoggerFactory.getLogger(ArtifactService.class);
     private static final int BUFFER_SIZE = 64 * 1024;
 
-    private final Map<String, Repository> repositories = new LinkedHashMap<>();
+    /** Replaced as a whole on every change, so requests always see one consistent list. */
+    private volatile Map<String, Repository> repositories = Map.of();
     private final UpstreamClient upstreamClient;
     private final NegativeCache negativeCache;
     private final DownloadCoordinator downloads;
@@ -33,11 +34,7 @@ public class ArtifactService {
 
     public ArtifactService(List<Repository> repositories, UpstreamClient upstreamClient, NegativeCache negativeCache,
                            DownloadCoordinator downloads, FreshnessPolicy freshness, OfflineMode offline) {
-        for (Repository repository : repositories) {
-            if (repository.name().equals(GROUP) || this.repositories.putIfAbsent(repository.name(), repository) != null) {
-                throw new IllegalArgumentException("Duplicate or reserved repository name: " + repository.name());
-            }
-        }
+        repositories.forEach(this::addRepository);
         this.upstreamClient = upstreamClient;
         this.negativeCache = negativeCache;
         this.downloads = downloads;
@@ -55,6 +52,26 @@ public class ArtifactService {
 
         record Missing() implements Resolution {
         }
+    }
+
+    /** Adds an upstream, tried after the existing ones. */
+    public synchronized void addRepository(Repository repository) {
+        if (repository.name().equals(GROUP) || repositories.containsKey(repository.name())) {
+            throw new IllegalArgumentException("Duplicate or reserved repository name: " + repository.name());
+        }
+        Map<String, Repository> updated = new LinkedHashMap<>(repositories);
+        updated.put(repository.name(), repository);
+        repositories = java.util.Collections.unmodifiableMap(updated);
+    }
+
+    /** Stops asking an upstream; what it served stays on disk. */
+    public synchronized void removeRepository(String name) {
+        if (!repositories.containsKey(name)) {
+            throw new IllegalArgumentException("No repository " + name);
+        }
+        Map<String, Repository> updated = new LinkedHashMap<>(repositories);
+        updated.remove(name);
+        repositories = java.util.Collections.unmodifiableMap(updated);
     }
 
     public List<Repository> repositories() {

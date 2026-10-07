@@ -46,6 +46,7 @@ class UiControllerTest {
         registry.add("localrepo.upstreams[0].name", () -> "mock");
         registry.add("localrepo.upstreams[0].url", () -> upstream.baseUrl() + "/maven2");
         registry.add("localrepo.cache-dir", () -> home.resolve("cache").toString());
+        registry.add("localrepo.home", home::toString);
         registry.add("localrepo.gradle-user-home", () -> home.resolve("gradle").toString());
         registry.add("localrepo.maven-settings", () -> home.resolve("m2/settings.xml").toString());
     }
@@ -183,6 +184,30 @@ class UiControllerTest {
         mvc.perform(post("/ui/purge").header(ACTION, "true").param("path", "junit"))
                 .andExpect(content().string(containsString("Deleted")));
         assertFalse(Files.exists(home.resolve("cache/mock/junit/junit/4.13.2/junit-4.13.2.jar")));
+    }
+
+    @Test
+    void addsAndRemovesAnUpstreamFromTheUpstreamsPage() throws Exception {
+        mvc.perform(post("/ui/upstreams").param("name", "company").param("url", "https://nexus.example/releases"))
+                .andExpect(status().isForbidden());
+
+        mvc.perform(post("/ui/upstreams").header(ACTION, "true")
+                        .param("name", "company").param("url", "https://nexus.example/releases")
+                        .param("includes", "com/example/**, org/example/**")
+                        .param("credentials", "gradle").param("username", "nexus.user").param("password", "nexus.password"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("https://nexus.example/releases")))
+                .andExpect(content().string(containsString("only com/example/**, org/example/**")))
+                .andExpect(content().string(containsString("Remove")));
+        assertTrue(service.repositories().stream().anyMatch(r -> r.name().equals("company")));
+        assertTrue(Files.readString(home.resolve("upstreams.yml")).contains("gradle-property-username: nexus.user"));
+
+        mvc.perform(post("/ui/upstreams").header(ACTION, "true").param("name", "mock").param("url", "https://x.example"))
+                .andExpect(content().string(containsString("Duplicate")));
+
+        mvc.perform(post("/ui/upstreams/company/remove").header(ACTION, "true"))
+                .andExpect(content().string(not(containsString("nexus.example"))));
+        assertTrue(service.repositories().stream().noneMatch(r -> r.name().equals("company")));
     }
 
     @Test
