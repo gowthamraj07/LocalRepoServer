@@ -7,6 +7,10 @@
 //
 // Opt out for one build with -Plocalrepo.disabled=true or LOCALREPO_DISABLED=1. Point at another server with
 // LOCALREPO_URL=http://host:port.
+//
+// While the server is in offline mode it is the only remote repository the build asks: the build's own repositories
+// cannot be reached then anyway, and Gradle fails a version range (e.g. [1.80,1.81)) when any repository it lists the
+// versions in is unreachable. Ask for that at any time with -Plocalrepo.exclusive=true or LOCALREPO_EXCLUSIVE=1.
 
 def localRepoBase = (System.getenv('LOCALREPO_URL') ?: '@BASE_URL@').replaceAll('/+$', '')
 def localRepoName = 'LocalRepoServer'
@@ -33,6 +37,30 @@ if (!localRepoUp) {
     return
 }
 
+def localRepoExclusive = System.getenv('LOCALREPO_EXCLUSIVE') in ['1', 'true'] ||
+        gradle.startParameter.projectProperties['localrepo.exclusive'] == 'true' ||
+        System.getProperty('localrepo.exclusive') == 'true'
+if (!localRepoExclusive) {
+    try {
+        def connection = new URL(localRepoBase + '/api/offline').openConnection()
+        connection.connectTimeout = 300
+        connection.readTimeout = 2000
+        if (connection.inputStream.text.replaceAll('\\s', '').contains('"enabled":true')) {
+            localRepoExclusive = true
+            logger.lifecycle("LocalRepoServer is offline; it is the only repository this build uses")
+        }
+    } catch (Exception ignored) {
+    }
+}
+
+// Keeps a repository in the list but never asks it for anything. Local ones (mavenLocal(), file: URLs) still work.
+def silence = { repository ->
+    if (localRepoExclusive && repository.name != localRepoName && repository.hasProperty('url') &&
+            repository.url?.scheme in ['http', 'https']) {
+        repository.content { excludeGroupByRegex('.*') }
+    }
+}
+
 def putProxyFirst = { repositories ->
     if (repositories.findByName(localRepoName) != null) {
         return
@@ -44,6 +72,7 @@ def putProxyFirst = { repositories ->
     }
     repositories.remove(proxy)
     repositories.addFirst(proxy)
+    repositories.each(silence)
 }
 
 // Only touch lists the build actually uses: adding a project repository where the build declares none would hide
@@ -54,6 +83,7 @@ def proxyDeclaredRepositories = { repositories ->
     }
     repositories.whenObjectAdded { repository ->
         if (repository.name != localRepoName) {
+            silence(repository)
             putProxyFirst(repositories)
         }
     }

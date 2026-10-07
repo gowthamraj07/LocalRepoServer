@@ -5,6 +5,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import com.localrepo.server.artifact.OfflineMode;
+import org.junit.jupiter.api.AfterEach;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -50,6 +53,9 @@ class GradleInitScriptTest {
     @LocalServerPort
     int port;
 
+    @Autowired
+    OfflineMode offline;
+
     @TempDir
     Path project;
     private Path initScript;
@@ -69,6 +75,46 @@ class GradleInitScriptTest {
                         URI.create("http://127.0.0.1:" + port + "/setup/gradle/localrepo.init.gradle")).build(),
                 HttpResponse.BodyHandlers.ofString()).body();
         initScript = Files.writeString(project.resolve("localrepo.init.gradle"), script);
+    }
+
+    @AfterEach
+    void backOnline() {
+        offline.set(false);
+    }
+
+    @Test
+    void resolvesAVersionRangeOfflineThoughTheBuildDeclaresAnUnreachableRepository() throws Exception {
+        // Gradle lists the versions of a range in every repository and fails if one is unreachable, so while the
+        // server is offline it has to be the only repository the build asks.
+        stubMetadata();
+        for (String file : List.of("com/example/lib/maven-metadata.xml", LIB + ".pom", LIB + ".jar")) {
+            assertEquals(200, HttpClient.newHttpClient().send(HttpRequest.newBuilder(
+                    URI.create("http://127.0.0.1:" + port + "/cache/" + file)).build(),
+                    HttpResponse.BodyHandlers.discarding()).statusCode(), file);
+        }
+        offline.set(true);
+        writeSettings("");
+        writeBuild("repositories { maven { url = '%s'; allowInsecureProtocol = true } }".formatted(DEAD_REPO),
+                "com.example:lib:[1.0,2.0)");
+
+        GradleRunner.Result result = gradle("resolveLib");
+
+        assertEquals(0, result.exitCode(), result.output());
+        assertTrue(result.output().contains("RESOLVED lib-1.0.jar"), result.output());
+        assertTrue(result.output().contains("LocalRepoServer is offline"), result.output());
+    }
+
+    @Test
+    void canBeTheOnlyRepositoryOnRequest() throws Exception {
+        stubMetadata();
+        writeSettings("");
+        writeBuild("repositories { maven { url = '%s/direct'; allowInsecureProtocol = true } }".formatted(upstream.baseUrl()),
+                "com.example:lib:[1.0,2.0)");
+
+        GradleRunner.Result result = gradle("resolveLib", "-Plocalrepo.exclusive=true");
+
+        assertEquals(0, result.exitCode(), result.output());
+        upstream.verify(0, anyRequestedFor(urlMatching("/direct/.*")));
     }
 
     @Test
@@ -152,6 +198,14 @@ class GradleInitScriptTest {
         upstream.verify(0, anyRequestedFor(urlMatching("/proxied/.*")));
     }
 
+    private void stubMetadata() {
+        for (String prefix : List.of("/proxied/", "/direct/")) {
+            upstream.stubFor(any(urlEqualTo(prefix + "com/example/lib/maven-metadata.xml")).willReturn(ok("""
+                    <metadata><groupId>com.example</groupId><artifactId>lib</artifactId><versioning><latest>1.0</latest>
+                    <release>1.0</release><versions><version>1.0</version></versions></versioning></metadata>""")));
+        }
+    }
+
     private GradleRunner.Result gradle(String... arguments) throws Exception {
         List<String> all = new ArrayList<>(List.of("--init-script", initScript.toString(), "--refresh-dependencies"));
         all.addAll(List.of(arguments));
@@ -163,14 +217,18 @@ class GradleInitScriptTest {
     }
 
     private void writeBuild(String repositories) throws Exception {
+        writeBuild(repositories, "com.example:lib:1.0");
+    }
+
+    private void writeBuild(String repositories, String dependency) throws Exception {
         Files.writeString(project.resolve("build.gradle"), """
                 plugins { id 'java' }
                 %s
-                dependencies { implementation 'com.example:lib:1.0' }
+                dependencies { implementation '%s' }
                 tasks.register('resolveLib') {
                     def classpath = configurations.runtimeClasspath
                     doLast { classpath.files.each { println "RESOLVED ${it.name}" } }
                 }
-                """.formatted(repositories));
+                """.formatted(repositories, dependency));
     }
 }

@@ -104,6 +104,8 @@ repositories stay behind it, so:
  * anything the server cannot serve (a private repository it does not know) still resolves as before
  * when the server is not running, builds use their own repositories as if nothing was installed
  * to skip the server for one build, use `./gradlew build -Plocalrepo.disabled=true` (or `LOCALREPO_DISABLED=1`)
+ * while the server is in [offline mode](#working-offline), it is the only remote repository builds use (local ones such
+   as `mavenLocal()` still work). Ask for that at any time with `-Plocalrepo.exclusive=true` (or `LOCALREPO_EXCLUSIVE=1`)
 
 It covers Kotlin and Groovy DSL builds, Android Gradle Plugin and Kotlin Multiplatform builds (tested with Gradle 9).
 Android Studio and IntelliJ use the same init script when they sync.
@@ -276,6 +278,12 @@ an upstream, serves what it has and answers 404 for the rest. Without the switch
 network is gone: everything already cached is served as usual.
 
 To make sure a project builds offline, build it once online (or prefetch it, see below) before you go.
+
+**Switch offline mode on when you have no network.** Gradle resolves a version range (e.g. `[1.80,1.81)`, common deep
+in dependency trees, such as BouncyCastle) by listing the versions in *every* repository the build declares, and fails
+if one cannot be reached. In offline mode the Gradle setup makes the server the only remote repository, so such builds
+work from the cache alone. Without the switch, the server still serves everything it has, but builds with version
+ranges fail while the network is gone.
 
 ### Taking dependencies to another machine
 
