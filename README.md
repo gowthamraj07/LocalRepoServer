@@ -350,8 +350,7 @@ When that disk is not connected:
 "java" may access files on a removable volume, and the server waits until you answer. Click **Allow**. If you missed the
 prompt (the server does not come up after `move-cache`), open System Settings → Privacy & Security → Files & Folders →
 java and turn on **Removable Volumes**. If java is not listed there, add the `java` binary under **Full Disk Access**
-instead: the `JAVA_HOME` in
-`~/Library/LaunchAgents/com.localrepo.server.plist` shows which one runs.
+instead; the `JAVA_HOME` in `~/Library/LaunchAgents/com.localrepo.server.plist` shows which one runs.
 
 Any disk macOS can write to works. APFS or Mac OS Extended are best; on exFAT the cache works, but file permissions
 cannot be set.
