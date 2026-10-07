@@ -137,6 +137,16 @@ action() { # method path [curl args...]
     echo
 }
 
+# bootout returns before the job is gone, and bootstrapping it again meanwhile fails with an I/O error.
+unload_service() {
+    local domain="gui/$(id -u)"
+    launchctl bootout "$domain/$label" 2> /dev/null || return 0
+    for _ in $(seq 1 50); do
+        launchctl print "$domain/$label" > /dev/null 2>&1 || return 0
+        sleep 0.2
+    done
+}
+
 service() {
     [[ "$(uname)" == Darwin ]] || die "the service command uses macOS launchd; on Linux run 'localrepo start --foreground' from systemd"
     local domain="gui/$(id -u)"
@@ -168,13 +178,13 @@ service() {
 </dict>
 </plist>
 PLIST
+            unload_service
             stop > /dev/null || true
-            launchctl bootout "$domain/$label" 2> /dev/null || true
             launchctl bootstrap "$domain" "$plist"
             echo "LocalRepoServer now starts at login ($plist)"
             ;;
         uninstall)
-            launchctl bootout "$domain/$label" 2> /dev/null || true
+            unload_service
             rm -f "$plist"
             echo "Removed the login service"
             ;;
