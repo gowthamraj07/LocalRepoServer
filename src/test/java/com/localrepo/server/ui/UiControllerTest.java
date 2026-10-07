@@ -69,7 +69,7 @@ class UiControllerTest {
 
     @Test
     void rendersEveryPageWithNavigationAndTheOfflineSwitch() throws Exception {
-        for (String page : new String[]{"/", "/downloads", "/artifacts", "/upstreams", "/setup"}) {
+        for (String page : new String[]{"/", "/downloads", "/artifacts", "/upstreams", "/setup", "/maintenance"}) {
             mvc.perform(get(page))
                     .andExpect(status().isOk())
                     .andExpect(content().string(containsString("LocalRepoServer")))
@@ -141,6 +141,48 @@ class UiControllerTest {
                 .andExpect(content().string(containsString("Installed")));
         assertTrue(Files.readString(home.resolve("m2/settings.xml")).contains("<mirrorOf>*</mirrorOf>"));
         mvc.perform(post("/ui/setup/maven/uninstall").header(ACTION, "true"));
+    }
+
+    @Test
+    void maintenancePageOffersExportImportPrefetchAndPurge() throws Exception {
+        mvc.perform(get("/maintenance"))
+                .andExpect(content().string(containsString("/api/export")))
+                .andExpect(content().string(containsString("Prefetch")))
+                .andExpect(content().string(containsString("No size limit")));
+    }
+
+    @Test
+    void importsAnUploadedBundle() throws Exception {
+        java.io.ByteArrayOutputStream zip = new java.io.ByteArrayOutputStream();
+        try (java.util.zip.ZipOutputStream out = new java.util.zip.ZipOutputStream(zip)) {
+            out.putNextEntry(new java.util.zip.ZipEntry("mock/x/y/1/y-1.jar"));
+            out.write(new byte[]{7, 7});
+            out.closeEntry();
+        }
+        org.springframework.mock.web.MockMultipartFile file =
+                new org.springframework.mock.web.MockMultipartFile("file", "bundle.zip", "application/zip", zip.toByteArray());
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/ui/import").file(file))
+                .andExpect(status().isForbidden());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/ui/import").file(file)
+                        .header(ACTION, "true"))
+                .andExpect(content().string(containsString("Imported 1")));
+        assertTrue(Files.exists(home.resolve("cache/mock/x/y/1/y-1.jar")));
+    }
+
+    @Test
+    void prefetchesAndPurgesFromTheUi() throws Exception {
+        mvc.perform(post("/ui/prefetch").header(ACTION, "true").param("list", "junit/junit/4.13.2/junit-4.13.2.jar"))
+                .andExpect(content().string(containsString("of 1")));
+        while (Files.notExists(home.resolve("cache/mock/junit/junit/4.13.2/junit-4.13.2.jar"))) {
+            Thread.sleep(10);
+        }
+        mvc.perform(post("/ui/prefetch").header(ACTION, "true").param("list", "only:two"))
+                .andExpect(content().string(containsString("Expected group:artifact:version")));
+
+        mvc.perform(post("/ui/purge").header(ACTION, "true").param("path", "junit"))
+                .andExpect(content().string(containsString("Deleted")));
+        assertFalse(Files.exists(home.resolve("cache/mock/junit/junit/4.13.2/junit-4.13.2.jar")));
     }
 
     @Test

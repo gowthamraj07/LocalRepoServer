@@ -99,5 +99,22 @@ untouched and a backup is written next to it before every change.
 -----
 
 ### How to ship the cache
-The cache directory is a plain Maven repository; copy `~/.localrepo/cache` to another machine to reuse it.
+Bundles carry cached files to another machine, with checksums (also on the Maintenance page of the UI):
+```
+# everything, or what one project used: build it first, then export what was used in that time
+curl -o bundle.zip 'http://localhost:8082/api/export'
+curl -o bundle.zip 'http://localhost:8082/api/export?usedWithin=1h'
+
+# on the other machine
+curl -X POST -H 'X-LocalRepo-Action: true' -H 'Content-Type: application/zip' --data-binary @bundle.zip \
+  http://localhost:8082/api/import
+```
+Importing keeps files the cache already has and rejects anything that does not match the bundle's checksums.
+
+### Keeping the cache in shape
+ * `--localrepo.max-size=20GB` deletes the least recently used files when the cache grows past it (checked every
+   10 minutes); `--localrepo.pinned=androidx/**,...` protects paths from that
+ * `POST /api/purge?path=com/example&unusedFor=30d` deletes files below a path and/or unused for a while
+ * `POST /api/prefetch` with `group:artifact:version` lines, repository paths, or a Gradle `verification-metadata.xml`
+   downloads them ahead of time, e.g. before going offline; `GET /api/prefetch` shows progress
 -----

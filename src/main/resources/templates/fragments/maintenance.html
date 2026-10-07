@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="import-result">
+    <p><span class="badge ok" th:text="|Imported ${result.imported()}|">Imported 0</span>
+        <span class="muted" th:text="|${result.alreadyCached()} already cached, ${result.unknownRepository()} for repositories not configured here|"></span></p>
+    <div th:unless="${result.rejected().isEmpty()}">
+        <p class="error" th:text="|Rejected ${result.rejected().size()}:|"></p>
+        <ul><li th:each="r : ${result.rejected()}"><code th:text="${r}"></code></li></ul>
+    </div>
+</div>
+
+<div th:fragment="prefetch" id="prefetch"
+     th:attr="hx-get=${prefetch.running()} ? '/ui/fragments/prefetch' : null, hx-trigger=${prefetch.running()} ? 'every 1s' : null"
+     hx-swap="outerHTML">
+    <p class="error" th:if="${prefetchError != null}" th:text="${prefetchError}"></p>
+    <th:block th:if="${prefetch.startedAt() != null}">
+        <progress max="100" th:value="${@fmt.percentOf(prefetch.done(), prefetch.total())}"></progress>
+        <p class="muted" th:text="|${prefetch.running() ? 'Prefetching' : 'Prefetched'} ${prefetch.done()} of ${prefetch.total()}: ${prefetch.fetched()} downloaded, ${prefetch.cached()} already cached, ${prefetch.missing()} not found upstream|"></p>
+        <ul th:unless="${prefetch.failed().isEmpty()}"><li th:each="f : ${prefetch.failed()}" class="error"><code th:text="${f}"></code></li></ul>
+    </th:block>
+</div>
+
+<div th:fragment="purge-result">
+    <p class="error" th:if="${purgeError != null}" th:text="${purgeError}"></p>
+    <p th:if="${purged != null}" th:text="|Deleted ${purged.size()} files.|"></p>
+</div>
+
+<div th:fragment="evict-result">
+    <p th:text="|${@fmt.bytes(eviction.sizeBefore())} cached; deleted ${eviction.deleted().size()} files, now ${@fmt.bytes(eviction.sizeAfter())}.|"></p>
+</div>
+</body>
+</html>

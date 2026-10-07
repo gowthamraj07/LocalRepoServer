@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Maintenance')}"></head>
+<body hx-headers='{"X-LocalRepo-Action": "true"}'>
+<header th:replace="~{fragments/layout :: header('maintenance')}"></header>
+<main>
+    <h1>Maintenance</h1>
+
+    <section class="card">
+        <h2>Export a bundle</h2>
+        <p>A zip of cached files with their checksums, to import on another machine. To take one project's
+            dependencies along, build it (with <code>--refresh-dependencies</code> for Gradle), then export what was
+            used in that time.</p>
+        <form action="/api/export" method="get" class="inline-form">
+            <label>Files <select name="usedWithin">
+                <option value="">everything cached</option>
+                <option value="1h">used in the last hour</option>
+                <option value="1d">used in the last day</option>
+                <option value="7d">used in the last week</option>
+            </select></label>
+            <label>Below path <input type="text" name="path" placeholder="optional, e.g. androidx"></label>
+            <button type="submit">Download zip</button>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Import a bundle</h2>
+        <p>Files the cache already has are kept; anything that does not match the bundle's checksums is rejected.</p>
+        <form class="inline-form" hx-post="/ui/import" hx-encoding="multipart/form-data" hx-target="#import-result">
+            <input type="file" name="file" accept=".zip,application/zip" required>
+            <button type="submit">Import</button>
+        </form>
+        <div id="import-result"></div>
+    </section>
+
+    <section class="card">
+        <h2>Prefetch</h2>
+        <p>Download ahead of time, for example before going offline. One <code>group:artifact:version</code> or
+            repository path per line, or paste a Gradle <code>verification-metadata.xml</code>.</p>
+        <form hx-post="/ui/prefetch" hx-target="#prefetch" hx-swap="outerHTML">
+            <textarea name="list" rows="5" required placeholder="org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0&#10;androidx.core:core:1.13.1@aar"></textarea>
+            <div class="buttons"><button type="submit">Prefetch</button></div>
+        </form>
+        <th:block th:replace="~{fragments/maintenance :: prefetch}"></th:block>
+    </section>
+
+    <section class="card">
+        <h2>Purge</h2>
+        <p>Delete cached files below a path, unused for a number of days, or both.</p>
+        <form class="inline-form" hx-post="/ui/purge" hx-target="#purge-result" hx-confirm="Delete these files from the cache?">
+            <label>Below path <input type="text" name="path" placeholder="e.g. com/example"></label>
+            <label>Unused for <input type="number" name="unusedDays" min="0" placeholder="days"></label>
+            <button type="submit" class="secondary">Purge</button>
+        </form>
+        <div id="purge-result"></div>
+    </section>
+
+    <section class="card">
+        <h2>Size limit</h2>
+        <p th:if="${maxSize == null}">No size limit. Set <code>localrepo.max-size</code> (e.g. <code>20GB</code>) to
+            delete the least recently used files automatically.</p>
+        <p th:if="${maxSize != null}">The cache is kept under <strong th:text="${@fmt.bytes(maxSize.toBytes())}"></strong>
+            by deleting the least recently used files<span th:unless="${pinned.isEmpty()}">, never
+            <code th:text="${#strings.listJoin(pinned, ', ')}"></code></span>.</p>
+        <form hx-post="/ui/evict" hx-target="#evict-result"><button type="submit" class="secondary">Enforce now</button></form>
+        <div id="evict-result"></div>
+    </section>
+</main>
+</body>
+</html>

@@ -114,3 +114,11 @@ button.danger { color: var(--bad-text); }
     .topbar { padding: 10px 16px; gap: 8px; }
     table { display: block; overflow-x: auto; }
 }
+
+.inline-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 8px; }
+.inline-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+input[type="text"], input[type="number"], select, textarea {
+    font: inherit; padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px;
+    background: var(--bg); color: var(--text);
+}
+textarea { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; margin-bottom: 8px; }
