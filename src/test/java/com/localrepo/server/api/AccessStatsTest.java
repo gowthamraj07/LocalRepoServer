@@ -52,6 +52,35 @@ class AccessStatsTest {
     }
 
     @Test
+    void doesNotRecreateAMissingCacheDirectory() {
+        Path gone = cacheDir.resolve("gone");
+        AccessStats stats = new AccessStats(gone, clock);
+        stats.miss();
+
+        assertThrows(java.io.IOException.class, stats::flush);
+
+        assertFalse(java.nio.file.Files.exists(gone));
+    }
+
+    @Test
+    void addsToTheSavedIndexWhenTheCacheDirectoryOnlyAppearsLater() throws Exception {
+        AccessStats before = new AccessStats(cacheDir, clock);
+        before.hit(cacheDir.resolve("central/a/b/1/b-1.jar"), 10);
+        before.flush();
+        Path disconnected = cacheDir.resolveSibling(cacheDir.getFileName() + "-away");
+        java.nio.file.Files.move(cacheDir, disconnected);
+
+        AccessStats stats = new AccessStats(cacheDir, clock);
+        stats.hit(cacheDir.resolve("central/a/b/1/b-1.jar"), 10);
+        java.nio.file.Files.move(disconnected, cacheDir);
+        stats.flush();
+
+        AccessStats reloaded = new AccessStats(cacheDir, clock);
+        assertEquals(2, reloaded.totals().hits());
+        assertEquals(2, reloaded.access("central/a/b/1/b-1.jar").hits());
+    }
+
+    @Test
     void forgetsDeletedFiles() {
         AccessStats stats = new AccessStats(cacheDir, clock);
         stats.hit(cacheDir.resolve("central/a/b/1/b-1.jar"), 10);

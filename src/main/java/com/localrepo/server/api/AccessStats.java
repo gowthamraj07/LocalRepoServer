@@ -39,6 +39,8 @@ public class AccessStats implements AutoCloseable {
     private final AtomicLong bytesDownloaded = new AtomicLong();
     private final Map<String, FileAccess> files = new ConcurrentHashMap<>();
     private final AtomicBoolean dirty = new AtomicBoolean();
+    /** Whether the saved index has been read; not while the cache directory was unavailable. */
+    private volatile boolean loaded;
     private ScheduledExecutorService flusher;
 
     public record Totals(long hits, long misses, long bytesServedFromCache, long bytesDownloaded) {
@@ -112,7 +114,13 @@ public class AccessStats implements AutoCloseable {
         if (!dirty.getAndSet(false)) {
             return;
         }
-        Files.createDirectories(cacheDir);
+        if (!Files.isDirectory(cacheDir)) {
+            dirty.set(true);
+            throw new IOException("The cache directory " + cacheDir + " is not available");
+        }
+        if (!loaded) {
+            load(); // the cache directory has come back: add to what was saved there instead of replacing it
+        }
         Path part = Files.createTempFile(cacheDir, ".index.json.", ".part");
         try {
             json.writeValue(part.toFile(), new Index(totals(), Map.copyOf(files)));
@@ -134,6 +142,9 @@ public class AccessStats implements AutoCloseable {
     }
 
     private void flushQuietly() {
+        if (!Files.isDirectory(cacheDir)) {
+            return; // its disk is not connected; saved once it is back
+        }
         try {
             flush();
         } catch (IOException | RuntimeException e) {
@@ -141,23 +152,34 @@ public class AccessStats implements AutoCloseable {
         }
     }
 
-    private void load() {
+    private synchronized void load() {
+        if (loaded || !Files.isDirectory(cacheDir)) {
+            return;
+        }
+        loaded = true;
         if (!Files.isRegularFile(indexFile)) {
             return;
         }
         try {
             Index index = json.readValue(indexFile.toFile(), Index.class);
             if (index.totals() != null) {
-                hits.set(index.totals().hits());
-                misses.set(index.totals().misses());
-                bytesServedFromCache.set(index.totals().bytesServedFromCache());
-                bytesDownloaded.set(index.totals().bytesDownloaded());
+                hits.addAndGet(index.totals().hits());
+                misses.addAndGet(index.totals().misses());
+                bytesServedFromCache.addAndGet(index.totals().bytesServedFromCache());
+                bytesDownloaded.addAndGet(index.totals().bytesDownloaded());
             }
             if (index.files() != null) {
-                files.putAll(index.files());
+                index.files().forEach((key, saved) -> files.merge(key, saved, AccessStats::combine));
             }
         } catch (IOException e) {
             log.warn("Ignoring unreadable {}", indexFile, e);
         }
+    }
+
+    private static FileAccess combine(FileAccess current, FileAccess saved) {
+        Instant last = current.lastAccess() == null ? saved.lastAccess()
+                : saved.lastAccess() == null || current.lastAccess().isAfter(saved.lastAccess()) ? current.lastAccess()
+                : saved.lastAccess();
+        return new FileAccess(current.hits() + saved.hits(), last);
     }
 }

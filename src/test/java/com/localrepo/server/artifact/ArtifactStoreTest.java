@@ -36,6 +36,21 @@ class ArtifactStoreTest {
     }
 
     @Test
+    void createsItsOwnFolderButNeverTheCacheDirectoryItLivesIn() throws IOException {
+        // The cache directory may be on a disk that is not connected; writing would recreate it on the wrong disk.
+        Path cacheDir = root.resolve("cache");
+        ArtifactStore central = new ArtifactStore(cacheDir.resolve("central"), Clock.systemUTC());
+
+        IOException error = assertThrows(IOException.class, () -> central.save(POM, bytes("<project/>"), ORIGIN));
+
+        assertTrue(error.getMessage().contains(cacheDir.toString()), error.getMessage());
+        assertFalse(Files.exists(cacheDir));
+
+        Files.createDirectory(cacheDir);
+        assertNotNull(central.save(POM, bytes("<project/>"), ORIGIN));
+    }
+
+    @Test
     void findsNothingInAnEmptyStore() {
         assertTrue(store.find(POM).isEmpty());
     }

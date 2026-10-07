@@ -2,6 +2,7 @@ package com.localrepo.server.config;
 
 import com.localrepo.server.artifact.ArtifactService;
 import com.localrepo.server.artifact.ArtifactStore;
+import com.localrepo.server.artifact.CacheLocation;
 import com.localrepo.server.artifact.CacheVerifier;
 import com.localrepo.server.artifact.DownloadCoordinator;
 import com.localrepo.server.artifact.DownloadTracker;
@@ -37,6 +38,13 @@ import java.util.Set;
 public class LocalRepoConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(LocalRepoConfiguration.class);
+
+    @Bean
+    CacheLocation cacheLocation(LocalRepoProperties properties) {
+        CacheLocation location = new CacheLocation(properties.cacheDir());
+        location.prepare();
+        return location;
+    }
 
     @Bean
     Clock clock() {

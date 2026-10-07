@@ -27,6 +27,9 @@ import java.util.stream.Stream;
 /**
  * Artifacts on disk in the standard Maven layout. A file is only ever visible under its final name once it has been
  * completely written, so a broken download can never be served.
+ * <p>
+ * The store lives in a folder of the cache directory ({@code <cacheDir>/<repository>}). It creates its own folder as
+ * needed, but never the cache directory: when that is gone, its disk is most likely not connected.
  */
 public class ArtifactStore {
 
@@ -103,6 +106,7 @@ public class ArtifactStore {
 
     /** Starts writing {@code path}. Nothing is visible through {@link #find} until {@link PendingWrite#commit}. */
     public PendingWrite begin(ArtifactPath path) throws IOException {
+        requireCacheDirectory();
         Path file = fileFor(path);
         Files.createDirectories(file.getParent());
         Path part = Files.createTempFile(file.getParent(), file.getFileName().toString() + ".", ArtifactPath.PART_SUFFIX);
@@ -165,6 +169,7 @@ public class ArtifactStore {
         /** Moves the bytes out of the cache, next to it, for inspection. The write is over afterwards. */
         public Path quarantine() throws IOException {
             channel.close();
+            requireCacheDirectory();
             Path target = root.resolveSibling(".quarantine").resolve(root.getFileName())
                     .resolve(path.value() + "." + clock.instant().toEpochMilli());
             Files.createDirectories(target.getParent());
@@ -238,6 +243,13 @@ public class ArtifactStore {
                     null);
         } catch (IOException e) {
             return new ArtifactMeta(null, null, null, Instant.EPOCH, -1, null);
+        }
+    }
+
+    private void requireCacheDirectory() throws IOException {
+        Path cacheDir = root.getParent();
+        if (cacheDir != null && !Files.isDirectory(cacheDir)) {
+            throw new IOException("The cache directory " + cacheDir + " is not available; is its disk connected?");
         }
     }
 
