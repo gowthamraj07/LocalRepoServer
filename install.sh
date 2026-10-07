@@ -2,7 +2,7 @@
 # Installs LocalRepoServer into ~/.localrepo and the `localrepo` command into ~/.local/bin.
 #
 #   curl -fsSL https://raw.githubusercontent.com/gowthamraj07/LocalRepoServer/master/install.sh | bash
-#   ./install.sh --jar target/server-2.0.0.jar      # from a local build instead of the latest release
+#   ./install.sh --jar target/server-<version>.jar      # from a local build instead of the latest release
 #
 # Environment: LOCALREPO_HOME (default ~/.localrepo), BIN_DIR (default ~/.local/bin).
 set -euo pipefail
