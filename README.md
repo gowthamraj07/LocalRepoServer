@@ -346,6 +346,13 @@ When that disk is not connected:
  * when the disk is back, everything works again on its own; no restart needed. This also covers the login service
    starting before the disk is mounted
 
+**macOS asks once for permission.** The first time the login service reads the external disk, macOS asks whether
+"java" may access files on a removable volume, and the server waits until you answer. Click **Allow**. If you missed the
+prompt (the server does not come up after `move-cache`), open System Settings → Privacy & Security → Files & Folders →
+java and turn on **Removable Volumes**. If java is not listed there, add the `java` binary under **Full Disk Access**
+instead: the `JAVA_HOME` in
+`~/Library/LaunchAgents/com.localrepo.server.plist` shows which one runs.
+
 Any disk macOS can write to works. APFS or Mac OS Extended are best; on exFAT the cache works, but file permissions
 cannot be set.
 
@@ -400,6 +407,8 @@ Credentials are given by name, never stored: keys of `~/.gradle/gradle.propertie
    `~/.m2/repository/**/*.lastUpdated`. Run once with `mvn -U`, or delete those files
  * **A dependency from a private repository is missing offline.** Add that repository on the Upstreams page (see
    [Private repositories](#private-repositories)), so the server caches it too
+ * **The server does not come up after moving the cache to an external disk.** macOS is waiting for you to allow access
+   to removable volumes; see [Keeping the cache on another disk](#keeping-the-cache-on-another-disk)
  * **"The cache folder ... is unavailable".** The disk holding the cache is not connected (or the folder was moved
    or deleted). Connect the disk; the server picks it up within seconds. See
    [Keeping the cache on another disk](#keeping-the-cache-on-another-disk)
