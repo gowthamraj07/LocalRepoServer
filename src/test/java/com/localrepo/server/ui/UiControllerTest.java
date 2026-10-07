@@ -86,7 +86,23 @@ class UiControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Hit rate")))
                 .andExpect(content().string(containsString("Saved")))
-                .andExpect(content().string(containsString("Disk use")));
+                .andExpect(content().string(containsString("Disk use")))
+                .andExpect(content().string(containsString(home.resolve("cache").toString())))
+                .andExpect(content().string(containsString(" free")));
+    }
+
+    @Test
+    void dashboardWarnsWhileTheCacheFolderIsUnavailable() throws Exception {
+        Path cache = home.resolve("cache");
+        Path away = java.nio.file.Files.move(cache, home.resolve("cache-disconnected"));
+        try {
+            mvc.perform(get("/ui/fragments/stats"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("Unavailable")))
+                    .andExpect(content().string(containsString("Is its disk connected?")));
+        } finally {
+            java.nio.file.Files.move(away, cache);
+        }
     }
 
     @Test

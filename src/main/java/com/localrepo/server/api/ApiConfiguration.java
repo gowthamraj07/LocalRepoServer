@@ -1,10 +1,10 @@
 package com.localrepo.server.api;
 
+import com.localrepo.server.artifact.CacheLocation;
 import com.localrepo.server.artifact.CachedArtifact;
 import com.localrepo.server.artifact.Download;
 import com.localrepo.server.artifact.DownloadTracker;
 import com.localrepo.server.artifact.RequestListener;
-import com.localrepo.server.config.LocalRepoProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -15,8 +15,8 @@ import java.time.Duration;
 public class ApiConfiguration {
 
     @Bean(destroyMethod = "close")
-    AccessStats accessStats(LocalRepoProperties properties, Clock clock, DownloadTracker tracker) {
-        AccessStats stats = new AccessStats(properties.cacheDir(), clock);
+    AccessStats accessStats(CacheLocation location, Clock clock, DownloadTracker tracker) {
+        AccessStats stats = new AccessStats(location.dir(), clock);
         stats.startPeriodicFlush(Duration.ofMinutes(1));
         tracker.addListener(new DownloadTracker.Listener() {
             @Override
@@ -32,6 +32,11 @@ public class ApiConfiguration {
             }
         });
         return stats;
+    }
+
+    @Bean
+    CacheHealthIndicator cacheHealthIndicator(CacheLocation location) {
+        return new CacheHealthIndicator(location);
     }
 
     @Bean

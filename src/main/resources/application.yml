@@ -17,6 +17,12 @@ spring:
       max-file-size: -1
       max-request-size: -1
 
+management:
+  endpoint:
+    health:
+      # Only reachable from this machine; says why the server is down (e.g. the cache disk is not connected).
+      show-details: always
+
 localrepo:
   home: ${user.home}/.localrepo
   cache-dir: ${localrepo.home}/cache

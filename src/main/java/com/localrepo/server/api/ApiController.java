@@ -2,6 +2,7 @@ package com.localrepo.server.api;
 
 import com.localrepo.server.artifact.ArtifactPath;
 import com.localrepo.server.artifact.ArtifactService;
+import com.localrepo.server.artifact.CacheLocation;
 import com.localrepo.server.artifact.CachedArtifact;
 import com.localrepo.server.artifact.DownloadProgress;
 import com.localrepo.server.artifact.DownloadTracker;
@@ -34,10 +35,13 @@ public class ApiController {
 
     private final ArtifactService service;
     private final AccessStats stats;
+    private final CacheLocation cacheLocation;
     private final DownloadTracker downloads;
     private final EventStream events;
 
-    public ApiController(ArtifactService service, AccessStats stats, DownloadTracker downloads, EventStream events) {
+    public ApiController(ArtifactService service, AccessStats stats, DownloadTracker downloads, EventStream events,
+                         CacheLocation cacheLocation) {
+        this.cacheLocation = cacheLocation;
         this.service = service;
         this.stats = stats;
         this.downloads = downloads;
@@ -53,7 +57,8 @@ public class ApiController {
     }
 
     public record Stats(long hits, long misses, double hitRate, long bytesServedFromCache, long bytesDownloaded,
-                        long diskUsage, long artifactCount, int activeDownloads) {
+                        long diskUsage, long artifactCount, int activeDownloads, String cacheDir,
+                        boolean cacheAvailable, long freeSpace) {
     }
 
     public record Downloads(List<DownloadProgress> active, List<DownloadProgress> recent) {
@@ -132,7 +137,8 @@ public class ApiController {
         long requests = totals.hits() + totals.misses();
         double hitRate = requests == 0 ? 0 : (double) totals.hits() / requests;
         return new Stats(totals.hits(), totals.misses(), hitRate, totals.bytesServedFromCache(),
-                totals.bytesDownloaded(), diskUsage, count, downloads.active().size());
+                totals.bytesDownloaded(), diskUsage, count, downloads.active().size(), cacheLocation.dir().toString(),
+                cacheLocation.available(), cacheLocation.freeSpace());
     }
 
     @GetMapping("/api/downloads")

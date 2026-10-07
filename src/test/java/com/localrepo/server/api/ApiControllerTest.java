@@ -84,6 +84,31 @@ class ApiControllerTest {
     }
 
     @Test
+    void reportsWhereTheCacheIsAndHowMuchSpaceIsLeft() throws Exception {
+        JsonNode stats = getJson("/api/stats");
+
+        assertEquals(cacheDir.toAbsolutePath().normalize().toString(), stats.get("cacheDir").asText());
+        assertTrue(stats.get("cacheAvailable").asBoolean());
+        assertTrue(stats.get("freeSpace").asLong() > 0);
+    }
+
+    @Test
+    void isDownWhileTheCacheDirectoryIsGoneSoGradleBuildsBypassIt() throws Exception {
+        assertEquals(200, status("/actuator/health"));
+        Path away = Files.move(cacheDir, cacheDir.resolveSibling(cacheDir.getFileName() + "-disconnected"));
+        try {
+            HttpResponse<String> health = http.send(HttpRequest.newBuilder(uri("/actuator/health")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(503, health.statusCode());
+            assertTrue(health.body().contains(cacheDir.getFileName().toString()), health.body());
+            assertFalse(getJson("/api/stats").get("cacheAvailable").asBoolean());
+        } finally {
+            Files.move(away, cacheDir);
+        }
+        assertEquals(200, status("/actuator/health"));
+    }
+
+    @Test
     void listsCachedArtifactsWithCoordinatesAndHits() throws Exception {
         fetchAndSettle("junit/junit/4.13.2/junit-4.13.2.pom");
         fetchAndSettle("junit/junit/4.13.2/junit-4.13.2.pom");
@@ -203,6 +228,10 @@ class ApiControllerTest {
         assertEquals(200, http.send(HttpRequest.newBuilder(uri("/cache/" + path)).build(),
                 HttpResponse.BodyHandlers.discarding()).statusCode());
         waitForDownloads();
+    }
+
+    private int status(String path) throws Exception {
+        return http.send(HttpRequest.newBuilder(uri(path)).build(), HttpResponse.BodyHandlers.discarding()).statusCode();
     }
 
     private JsonNode getJson(String path) throws Exception {

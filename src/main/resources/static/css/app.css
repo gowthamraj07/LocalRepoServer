@@ -69,6 +69,9 @@ h3 { font-size: 15px; margin: 24px 0 8px; color: var(--muted); }
     padding: 14px 16px; display: flex; flex-direction: column; gap: 2px;
 }
 .tile .label { color: var(--muted); font-size: 13px; }
+.tile.wide { grid-column: 1 / -1; }
+.tile.bad { background: var(--bad-bg); border-color: var(--bad-text); color: var(--bad-text); }
+.tile .path { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; overflow-wrap: anywhere; }
 .tile .value { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
 
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 4px 20px 18px; margin-bottom: 16px; }

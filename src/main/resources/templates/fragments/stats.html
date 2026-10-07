@@ -11,6 +11,13 @@
     <div class="tile"><span class="label">Disk use</span><span class="value" th:text="${@fmt.bytes(stats.diskUsage())}">0 B</span>
         <span class="muted" th:text="|${stats.artifactCount()} files|">0 files</span></div>
     <div class="tile"><span class="label">Active downloads</span><span class="value" th:text="${stats.activeDownloads()}">0</span></div>
+    <div class="tile wide" th:classappend="${stats.cacheAvailable()} ? '' : 'bad'">
+        <span class="label">Cache folder</span>
+        <span class="value" th:if="${stats.cacheAvailable()}" th:text="|${@fmt.bytes(stats.freeSpace())} free|">0 B free</span>
+        <span class="value" th:unless="${stats.cacheAvailable()}">Unavailable</span>
+        <span class="path" th:text="${stats.cacheDir()}">~/.localrepo/cache</span>
+        <span class="muted" th:unless="${stats.cacheAvailable()}">Is its disk connected? Until it is, Gradle builds use their own repositories.</span>
+    </div>
 </div>
 </body>
 </html>
