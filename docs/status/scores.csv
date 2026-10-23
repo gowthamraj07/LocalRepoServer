@@ -1,0 +1,15 @@
+date,module,axis,score,reqs,bugs,gaps
+2026-10-22,C1 Artifact serving & cache store,C,95,8,0,0
+2026-10-22,C2 Streaming pass-through & concurrent downloads,C,100,5,0,0
+2026-10-22,C3 Upstream routing & miss handling,C,90,7,1,1
+2026-10-22,C4 Freshness revalidation & offline mode,C,95,7,0,2
+2026-10-22,C5 Integrity checksums quarantine & cache scan,C,100,5,0,0
+2026-10-22,C6 Cache maintenance size limit purge & prefetch,C,95,6,0,1
+2026-10-22,P1 Bundles export & import,P,100,5,0,0
+2026-10-22,P2 Cache location move-cache & disk resilience,P,95,6,0,1
+2026-10-22,Z1 Gradle integration,Z,95,7,0,1
+2026-10-22,Z2 Maven integration,Z,80,6,1,1
+2026-10-22,L1 JSON API & live events,PL,100,7,0,0
+2026-10-22,L2 Web UI,PL,100,7,0,0
+2026-10-22,L3 Configuration & private upstreams,PL,100,6,0,0
+2026-10-22,L4 Packaging CLI & login service,PL,90,9,0,2
