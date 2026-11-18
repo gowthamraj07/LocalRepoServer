@@ -14,12 +14,36 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # Spring Boot 4 is a Spring Framework 7 migration, not a bump, and
+      # spring-boot-starter-parent drags the entire BOM with it (Tomcat,
+      # Micrometer, the test stack) in one step. Measured on PR #3: 50 compile
+      # errors across six files from two independent breaking changes -- Boot 4
+      # moves to Jackson 3, so `com.fasterxml.jackson.databind does not exist`,
+      # and the actuator health API relocated, so
+      # `org.springframework.boot.actuate.health does not exist`. Java 21 is
+      # already in place, so the JDK floor is not the blocker. Schedule it.
+      - dependency-name: "org.springframework.boot:spring-boot-starter-parent"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
     groups:
+      # Two groups, not one. A single patterns: ["*"] group swept three majors
+      # into PR #2 (checkout 4->7, setup-java 4->6, cache 4->6) and made the
+      # header comment above false for this ecosystem. Majors here also deserve
+      # reading because release.yml is tag-only, so a PR never executes it --
+      # the actions used only in that file have no CI coverage at all.
       actions:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      actions-major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
